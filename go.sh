@@ -57,7 +57,7 @@ case "${1:-setup}" in
     done < <(find "$COMFY/models/text_encoders" -type f -name '*.safetensors' 2>/dev/null)
     find "$COMFY/models" -mindepth 2 -type d -empty -delete 2>/dev/null || true
     echo
-    exec "$0" ps
+    exec bash "${BASH_SOURCE[0]}" ps
     ;;
 
   log)
