@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,14 @@ from typing import Any
 import yaml
 
 DEFAULTS: dict[str, Any] = {
-    "comfyui": {"host": "127.0.0.1", "port": 8188, "output_dir": None},
+    "comfyui": {
+        "url": None,  # RunPod 等のリモート: "https://<POD_ID>-8188.proxy.runpod.net"
+        "host": "127.0.0.1",
+        "port": 8188,
+        "output_dir": None,
+        "verify_tls": True,
+        "auth": {},  # {"bearer": "..."} または {"username": "...", "password": "..."}
+    },
     "models": {
         "unet_gguf": "Qwen-Image-2.1-Q4_K_M.gguf",
         "text_encoder": "qwen3vl_8b_int8_convrot.safetensors",
@@ -54,12 +62,26 @@ class Config:
     path: Path | None = None
 
     @property
-    def server_address(self) -> str:
-        return f"{self.comfyui['host']}:{self.comfyui['port']}"
+    def server_url(self) -> str:
+        """環境変数 REINA_COMFY_URL > config の url > host:port の順で決まる。"""
+        env = os.environ.get("REINA_COMFY_URL")
+        if env:
+            return env
+        if self.comfyui.get("url"):
+            return str(self.comfyui["url"])
+        return f"http://{self.comfyui['host']}:{self.comfyui['port']}"
 
     @property
-    def base_url(self) -> str:
-        return f"http://{self.server_address}"
+    def auth(self) -> dict:
+        auth = dict(self.comfyui.get("auth") or {})
+        for key, env in (("bearer", "REINA_COMFY_TOKEN"), ("username", "REINA_COMFY_USER"), ("password", "REINA_COMFY_PASSWORD")):
+            if os.environ.get(env):
+                auth[key] = os.environ[env]
+        return auth
+
+    @property
+    def verify_tls(self) -> bool:
+        return bool(self.comfyui.get("verify_tls", True))
 
 
 def find_config(explicit: str | None = None) -> Path | None:

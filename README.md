@@ -2,8 +2,8 @@
 
 Qwen-Image 2.1 (GGUF) を **ComfyUI** 経由で叩き、**参照画像から同一人物のリアル写真風画像をバリエーション生成**するためのツールキット。
 
-> **前提**: このリポジトリ自体は画像を生成しません。**GPU のあるあなたのマシンで ComfyUI を動かし、そこに API で投げる**クライアントです。
-> （CI / クラウドコンテナ上では GPU も huggingface.co へのアクセスもないため、生成は必ずローカルで実行してください）
+> **前提**: このリポジトリ自体は画像を生成しません。**GPU のあるマシン（ローカル or RunPod などのクラウド GPU）で ComfyUI を動かし、そこに API で投げる**クライアントです。
+> 手元に GPU が無い場合は [§2-B RunPod で動かす](#2-b-runpod-で動かす) を参照してください。
 
 > **利用範囲**: 自分自身の写真、または本人の同意がある写真・完全な架空人物のみを参照画像に使ってください。第三者の顔で性的・誤認を招く画像を作る用途は想定していません。
 
@@ -28,7 +28,7 @@ Qwen-Image 2.1 (GGUF) を **ComfyUI** 経由で叩き、**参照画像から同�
 
 ---
 
-## 2. セットアップ
+## 2-A. セットアップ（ローカル GPU）
 
 ```bash
 # ComfyUI 本体 + ComfyUI-GGUF（GGUF ローダ）
@@ -57,6 +57,98 @@ python -m reina doctor
 ```
 
 疎通・必要ノード・モデルファイルの有無を全部チェックして、足りないものを指摘します。**ここが全部 [OK] になってから先に進んでください。**
+
+---
+
+## 2-B. RunPod で動かす
+
+手元に GPU が無い場合。**ComfyUI を Pod 上で動かし、CLI は手元の PC から叩く**構成が扱いやすいです（参照画像のアップロードと生成画像の回収は CLI が自動でやります）。
+
+### ステップ1: Pod を作る
+
+| 項目 | 推奨 |
+|---|---|
+| GPU | RTX 4090 / A5000（24GB）。Q4_K_M なら RTX 3090・A4000(16GB) でも可 |
+| テンプレート | `RunPod PyTorch 2.x`（CUDA 12.x 系） |
+| Container Disk | 20 GB 以上 |
+| **Volume (`/workspace`)** | **60 GB 以上** — モデルはここに入れるので必須 |
+| Expose HTTP Ports | **`8188` を追加**（既定の 8888 等に加えて） |
+
+> **Network Volume** を作って割り当てておくと、Pod を消してもモデルが残るので次回は起動だけで済みます（課金は保存分のみ）。
+
+### ステップ2: Pod 上でセットアップ
+
+Web Terminal か SSH で Pod に入り：
+
+```bash
+cd /workspace
+git clone https://github.com/taikiblizzard0923-source/project-reina-generator.git
+cd project-reina-generator
+
+# ComfyUI + GGUF ノード + モデル取得（全部 /workspace 配下）
+bash scripts/runpod_setup.sh
+
+# 量子化を変える場合
+# QUANT=Q6_K bash scripts/runpod_setup.sh
+```
+
+完了したら ComfyUI を起動（`--listen 0.0.0.0` が必須。127.0.0.1 だと外から見えません）：
+
+```bash
+bash scripts/runpod_start.sh --daemon
+tail -f /workspace/comfyui.log        # "To see the GUI go to..." が出れば OK
+```
+
+### ステップ3: 手元の PC から接続
+
+RunPod のダッシュボードで Pod の **Connect → HTTP Service [Port 8188]** の URL を控えます
+（`https://<POD_ID>-8188.proxy.runpod.net` の形）。
+
+```bash
+export REINA_COMFY_URL="https://xxxxxxxxxxxx-8188.proxy.runpod.net"
+
+python -m reina doctor
+python -m reina batch -r input/me_front.jpg
+```
+
+`--server` で都度指定することもできます：
+
+```bash
+python -m reina doctor --server https://xxxxxxxxxxxx-8188.proxy.runpod.net
+```
+
+`config.yaml` に固定する場合：
+
+```yaml
+comfyui:
+  url: "https://xxxxxxxxxxxx-8188.proxy.runpod.net"
+```
+
+### ステップ4（推奨）: SSH トンネルにする
+
+`*.proxy.runpod.net` の URL は **Pod ID を知っていれば誰でも開けます**。個人の写真を扱うので、SSH ポートフォワードにして外に出さないほうが安全です。
+
+```bash
+# Pod の Connect → SSH の接続情報を使う
+ssh root@<POD_IP> -p <SSH_PORT> -i ~/.ssh/id_ed25519 -L 8188:localhost:8188 -N
+```
+
+つないだまま別ターミナルで：
+
+```bash
+export REINA_COMFY_URL="http://127.0.0.1:8188"
+python -m reina batch -r input/me_front.jpg
+```
+
+この場合 Pod 側の「Expose HTTP Ports 8188」は不要です。
+
+### RunPod での注意点
+
+- **Pod を止めるとコンテナ内は消えます。** `/workspace`（ボリューム）だけが残ります。`runpod_setup.sh` は全部 `/workspace` に入れるので、再開時は `runpod_start.sh` だけで立ち上がります。
+- **課金は起動中ずっと発生します。** 生成が終わったら Pod を Stop してください。
+- 初回は GGUF + テキストエンコーダで **20〜30GB のダウンロード**が走ります。数分〜十数分かかります。
+- ゲート付きモデルを使う場合は `export HF_TOKEN=hf_xxx` してから `runpod_setup.sh` を実行。
+- WebSocket がプロキシで切られる環境では、自動的に `/history` ポーリングに切り替わります（進捗表示は出ませんが生成は通ります）。
 
 ---
 
@@ -158,6 +250,20 @@ loras:
 **何が送られているか見たい**
 → 任意のコマンドに `--dry-run` を付けると、送信せずにワークフロー JSON を表示します。
 
+### RunPod 固有
+
+**`doctor` が「ComfyUI ではないようです」と言う**
+→ その URL が ComfyUI ではなく JupyterLab などを指しています。Connect パネルで **Port 8188** の HTTP Service URL を使ってください。Pod 設定で 8188 を Expose し忘れていることも多いです。
+
+**接続できない / 502 が返る**
+→ ComfyUI が `--listen 0.0.0.0` で起動していないと RunPod のプロキシから届きません。`runpod_start.sh` を使うか、`tail -f /workspace/comfyui.log` で起動状況を確認してください。
+
+**Pod を再起動したらモデルが消えた**
+→ `/workspace` 以外に入れています。`runpod_setup.sh` は `/workspace/ComfyUI` に入れるので、そちらで再実行してください（既存ファイルは再ダウンロードしません）。
+
+**生成が途中で止まる / タイムアウトする**
+→ 大きい quant や高解像度で 15 分を超える場合があります。`--timeout 2400` で延ばせます。
+
 ---
 
 ## 7. 構成
@@ -174,8 +280,10 @@ presets/
   scenes.yaml             シーン一覧
   axes.yaml               組み合わせ生成用の軸
 scripts/
-  install_comfyui.sh      ComfyUI + ComfyUI-GGUF
+  install_comfyui.sh      ComfyUI + ComfyUI-GGUF（ローカル用）
   download_models.sh      GGUF / テキストエンコーダ / VAE
+  runpod_setup.sh         RunPod の Pod 上で一括セットアップ
+  runpod_start.sh         Pod 上で ComfyUI を 0.0.0.0:8188 起動
 input/   参照画像を置く
 output/  生成結果（画像 + メタJSON）
 ```

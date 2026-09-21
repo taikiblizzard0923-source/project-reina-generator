@@ -31,6 +31,16 @@ def _log(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
+def _make_client(cfg, args: argparse.Namespace) -> ComfyClient:
+    url = getattr(args, "server", None) or cfg.server_url
+    return ComfyClient(
+        url,
+        timeout=getattr(args, "timeout", 900),
+        auth=cfg.auth,
+        verify=cfg.verify_tls,
+    )
+
+
 def _resolve_character(args: argparse.Namespace) -> Character:
     if args.character:
         return load_character(args.character)
@@ -85,13 +95,15 @@ def _cli_overrides(args: argparse.Namespace) -> dict[str, Any]:
 def cmd_doctor(args: argparse.Namespace) -> int:
     cfg = load_config(args.config)
     _log(f"config: {cfg.path}")
-    client = ComfyClient(cfg.server_address)
+    client = _make_client(cfg, args)
+    _log(f"server: {client.base_url}")
 
     try:
         stats = client.ping()
     except ComfyError as exc:
         _log(f"[NG] {exc}")
-        _log("     ComfyUI を起動してから再実行してください（例: python main.py --listen）")
+        _log("     ローカル: ComfyUI を起動 (python main.py --listen 127.0.0.1 --port 8188)")
+        _log("     RunPod  : Pod が Running か、8188 が HTTP ポートとして公開されているか確認")
         return 1
 
     devices = stats.get("devices") or []
@@ -99,9 +111,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         dev = devices[0]
         total = dev.get("vram_total", 0) / 1e9
         free = dev.get("vram_free", 0) / 1e9
-        _log(f"[OK] ComfyUI {cfg.base_url} / {dev.get('name')} VRAM {free:.1f}/{total:.1f} GB free")
+        _log(f"[OK] ComfyUI {client.base_url} / {dev.get('name')} VRAM {free:.1f}/{total:.1f} GB free")
     else:
-        _log(f"[OK] ComfyUI {cfg.base_url}")
+        _log(f"[OK] ComfyUI {client.base_url}")
 
     ok = True
     for node in ("UnetLoaderGGUF", "CLIPLoader", "VAELoader", "KSampler", "ModelSamplingAuraFlow"):
@@ -146,7 +158,7 @@ def _run_jobs(
     reference_paths: list[str],
 ) -> int:
     cfg = load_config(args.config)
-    client = ComfyClient(cfg.server_address, timeout=args.timeout)
+    client = _make_client(cfg, args)
     builder = WorkflowBuilder(cfg.models, cfg.defaults, cfg.loras)
     reference_mode = bool(reference_paths)
 
@@ -202,11 +214,14 @@ def _run_jobs(
                 _log(f"  [NG] {exc}")
                 continue
 
+            # defaults とマージした実効値を残す（.json だけで再現できるように）
+            effective = {**cfg.defaults, **params}
+            effective.pop("prefix", None)
             meta = {
                 "scene": scene.id,
                 "prompt": prompt,
                 "negative": negative,
-                "params": {k: v for k, v in params.items() if k != "prefix"},
+                "params": effective,
                 "reference_images": uploaded,
                 "models": cfg.models,
                 "loras": cfg.loras,
@@ -257,6 +272,10 @@ def cmd_mix(args: argparse.Namespace) -> int:
 
 def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", help="config.yaml のパス")
+    parser.add_argument(
+        "--server",
+        help="ComfyUI の URL。例: https://<POD_ID>-8188.proxy.runpod.net（環境変数 REINA_COMFY_URL でも可）",
+    )
     parser.add_argument("--character", help="キャラクター定義 YAML")
     parser.add_argument("-r", "--reference", action="append", help="参照画像（最大3枚、複数指定可）")
     parser.add_argument("-o", "--out", help="出力ディレクトリ（既定: output/）")
@@ -283,6 +302,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = sub.add_parser("doctor", help="ComfyUI との疎通・ノード・モデルファイルを確認")
     doctor.add_argument("--config")
+    doctor.add_argument("--server", help="ComfyUI の URL（RunPod の Proxy URL など）")
+    doctor.add_argument("--timeout", type=int, default=900)
     doctor.set_defaults(func=cmd_doctor)
 
     gen = sub.add_parser("generate", help="プロンプト1件を生成")

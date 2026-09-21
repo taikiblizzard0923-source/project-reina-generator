@@ -1,4 +1,9 @@
-"""ComfyUI の HTTP / WebSocket API クライアント。"""
+"""ComfyUI の HTTP / WebSocket API クライアント。
+
+ローカル (http://127.0.0.1:8188) と RunPod のプロキシ
+(https://<POD_ID>-8188.proxy.runpod.net) の両方を同じコードで扱えるよう、
+スキーム付きの URL を基準にする。
+"""
 
 from __future__ import annotations
 
@@ -17,30 +22,70 @@ class ComfyError(RuntimeError):
     pass
 
 
+def normalize_url(value: str) -> str:
+    """'127.0.0.1:8188' や 'xxx-8188.proxy.runpod.net' を正規の URL にする。
+
+    スキーム省略時は、ローカルアドレスなら http、それ以外は https を補う。
+    """
+    value = value.strip().rstrip("/")
+    if "://" in value:
+        return value
+    host = value.split(":", 1)[0]
+    local = host in ("localhost", "127.0.0.1", "::1", "0.0.0.0") or host.startswith("192.168.")
+    return f"{'http' if local else 'https'}://{value}"
+
+
 class ComfyClient:
-    def __init__(self, server_address: str, client_id: str | None = None, timeout: int = 900):
-        self.server_address = server_address
+    def __init__(
+        self,
+        url: str,
+        client_id: str | None = None,
+        timeout: int = 900,
+        auth: dict[str, Any] | None = None,
+        verify: bool = True,
+    ):
+        self.base_url = normalize_url(url)
         self.client_id = client_id or str(uuid.uuid4())
         self.timeout = timeout
-        self.base_url = f"http://{server_address}"
+        self.verify = verify
+
+        parsed = urllib.parse.urlparse(self.base_url)
+        self.host = parsed.netloc
+        self.ws_url = urllib.parse.urlunparse(
+            (("wss" if parsed.scheme == "https" else "ws"), parsed.netloc, parsed.path + "/ws", "", "", "")
+        )
+
+        self.session = requests.Session()
+        self.session.verify = verify
+        auth = auth or {}
+        if auth.get("bearer"):
+            self.session.headers["Authorization"] = f"Bearer {auth['bearer']}"
+        if auth.get("username"):
+            self.session.auth = (auth["username"], auth.get("password", ""))
 
     # -- 基本 ---------------------------------------------------------------
 
     def ping(self) -> dict[str, Any]:
         """/system_stats を叩いて疎通と GPU 情報を返す。"""
         try:
-            resp = requests.get(f"{self.base_url}/system_stats", timeout=10)
+            resp = self.session.get(f"{self.base_url}/system_stats", timeout=20)
             resp.raise_for_status()
         except requests.RequestException as exc:
             raise ComfyError(f"ComfyUI に接続できません ({self.base_url}): {exc}") from exc
-        return resp.json()
+        try:
+            return resp.json()
+        except ValueError as exc:
+            raise ComfyError(
+                f"{self.base_url} は ComfyUI ではないようです（JSON が返りません）。"
+                "RunPod ならポート 8188 の Proxy URL か、Pod がまだ起動中でないか確認してください。"
+            ) from exc
 
     def object_info(self, node_class: str | None = None) -> dict[str, Any]:
         """利用可能なノード定義。カスタムノードの有無確認に使う。"""
         url = f"{self.base_url}/object_info"
         if node_class:
             url += f"/{urllib.parse.quote(node_class)}"
-        resp = requests.get(url, timeout=30)
+        resp = self.session.get(url, timeout=60)
         if resp.status_code == 404:
             return {}
         resp.raise_for_status()
@@ -51,8 +96,8 @@ class ComfyClient:
 
     def model_list(self, folder: str) -> list[str]:
         """models/<folder> に置かれているファイル一覧（ComfyUI が認識しているもの）。"""
-        resp = requests.get(
-            f"{self.base_url}/models/{urllib.parse.quote(folder)}", timeout=30
+        resp = self.session.get(
+            f"{self.base_url}/models/{urllib.parse.quote(folder)}", timeout=60
         )
         if resp.status_code != 200:
             return []
@@ -69,11 +114,11 @@ class ComfyClient:
         if not path.exists():
             raise ComfyError(f"参照画像が見つかりません: {path}")
         with path.open("rb") as fh:
-            resp = requests.post(
+            resp = self.session.post(
                 f"{self.base_url}/upload/image",
                 files={"image": (path.name, fh, "application/octet-stream")},
                 data={"overwrite": str(overwrite).lower(), "subfolder": subfolder},
-                timeout=120,
+                timeout=300,
             )
         resp.raise_for_status()
         info = resp.json()
@@ -85,17 +130,28 @@ class ComfyClient:
 
     def queue_prompt(self, workflow: dict[str, Any]) -> str:
         payload = {"prompt": workflow, "client_id": self.client_id}
-        resp = requests.post(f"{self.base_url}/prompt", json=payload, timeout=60)
+        resp = self.session.post(f"{self.base_url}/prompt", json=payload, timeout=120)
         if resp.status_code != 200:
             raise ComfyError(f"ワークフロー投入に失敗しました: {resp.status_code} {resp.text[:2000]}")
         return resp.json()["prompt_id"]
 
     def wait(self, prompt_id: str, on_progress=None) -> None:
-        """WebSocket で完了まで待つ。"""
+        """完了まで待つ。WebSocket が張れない環境では /history ポーリングに落ちる。"""
+        try:
+            self._wait_ws(prompt_id, on_progress)
+        except ComfyError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - WS が使えない環境向けフォールバック
+            if on_progress:
+                on_progress(0, 0)
+            self._wait_poll(prompt_id, note=str(exc))
+
+    def _wait_ws(self, prompt_id: str, on_progress=None) -> None:
         ws = websocket.WebSocket()
         ws.connect(
-            f"ws://{self.server_address}/ws?clientId={self.client_id}",
+            f"{self.ws_url}?clientId={self.client_id}",
             timeout=self.timeout,
+            sslopt=None if self.verify else {"cert_reqs": 0},
         )
         deadline = time.time() + self.timeout
         try:
@@ -121,8 +177,22 @@ class ComfyClient:
         finally:
             ws.close()
 
+    def _wait_poll(self, prompt_id: str, interval: float = 3.0, note: str = "") -> None:
+        deadline = time.time() + self.timeout
+        while time.time() < deadline:
+            hist = self.history(prompt_id)
+            status = hist.get("status") or {}
+            if status.get("completed") or hist.get("outputs"):
+                return
+            if status.get("status_str") == "error":
+                messages = status.get("messages") or []
+                raise ComfyError(f"ComfyUI 実行エラー: {messages[-1] if messages else 'unknown'}")
+            time.sleep(interval)
+        suffix = f" (WebSocket 接続不可: {note})" if note else ""
+        raise ComfyError(f"タイムアウト ({self.timeout}s): prompt_id={prompt_id}{suffix}")
+
     def history(self, prompt_id: str) -> dict[str, Any]:
-        resp = requests.get(f"{self.base_url}/history/{prompt_id}", timeout=30)
+        resp = self.session.get(f"{self.base_url}/history/{prompt_id}", timeout=60)
         resp.raise_for_status()
         return resp.json().get(prompt_id, {})
 
@@ -138,7 +208,7 @@ class ComfyClient:
                     "subfolder": image.get("subfolder", ""),
                     "type": image.get("type", "output"),
                 }
-                resp = requests.get(f"{self.base_url}/view", params=params, timeout=120)
+                resp = self.session.get(f"{self.base_url}/view", params=params, timeout=300)
                 resp.raise_for_status()
                 yield image["filename"], resp.content
 

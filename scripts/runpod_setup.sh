@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# RunPod の Pod 上で実行する（Web Terminal か SSH から）。
+#
+#   bash runpod_setup.sh            # ComfyUI + GGUF ノード + モデル取得まで
+#   SKIP_MODELS=1 bash runpod_setup.sh
+#   QUANT=Q6_K bash runpod_setup.sh
+#
+# すべて /workspace（ネットワークボリューム）配下に入れるので、
+# Pod を作り直してもボリュームを付け替えれば再ダウンロード不要。
+set -euo pipefail
+
+WORKSPACE="${WORKSPACE:-/workspace}"
+COMFY="$WORKSPACE/ComfyUI"
+QUANT="${QUANT:-Q4_K_M}"
+
+if [ ! -d "$WORKSPACE" ]; then
+  echo "!! $WORKSPACE がありません。RunPod のネットワークボリューム/コンテナボリュームを確認してください。" >&2
+  exit 1
+fi
+
+echo "==> 依存パッケージ"
+apt-get update -qq && apt-get install -y -qq git wget curl libgl1 libglib2.0-0 >/dev/null
+
+echo "==> ComfyUI"
+if [ ! -d "$COMFY" ]; then
+  git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git "$COMFY"
+else
+  git -C "$COMFY" pull --ff-only || true
+fi
+
+cd "$COMFY"
+
+# RunPod の PyTorch イメージには torch が入っているので、
+# --system-site-packages でそれを再利用しつつ追加分だけボリュームに置く。
+if [ ! -d venv ]; then
+  echo "==> venv 作成 (system-site-packages を継承)"
+  python3 -m venv --system-site-packages venv
+fi
+# shellcheck disable=SC1091
+source venv/bin/activate
+pip install -q -U pip
+
+python -c "import torch" 2>/dev/null || {
+  echo "==> torch が無いのでインストール"
+  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+}
+
+echo "==> ComfyUI 依存"
+pip install -q -r requirements.txt
+
+echo "==> ComfyUI-GGUF"
+mkdir -p custom_nodes
+if [ ! -d custom_nodes/ComfyUI-GGUF ]; then
+  git clone --depth 1 https://github.com/city96/ComfyUI-GGUF.git custom_nodes/ComfyUI-GGUF
+else
+  git -C custom_nodes/ComfyUI-GGUF pull --ff-only || true
+fi
+pip install -q -r custom_nodes/ComfyUI-GGUF/requirements.txt
+
+mkdir -p models/unet models/text_encoders models/vae models/loras input output
+
+if [ "${SKIP_MODELS:-0}" != "1" ]; then
+  echo "==> モデル取得 (quant=$QUANT)"
+  QUANT="$QUANT" bash "$(dirname "$(readlink -f "$0")")/download_models.sh" "$COMFY"
+else
+  echo "==> SKIP_MODELS=1 のためモデル取得をスキップ"
+fi
+
+cat <<MSG
+
+======================================================================
+ セットアップ完了: $COMFY
+
+ 起動:
+   bash $(dirname "$(readlink -f "$0")")/runpod_start.sh
+
+ 接続先（RunPod の Connect → "HTTP Service [Port 8188]"）:
+   https://<POD_ID>-8188.proxy.runpod.net
+
+ 手元の PC からは:
+   python -m reina doctor --server https://<POD_ID>-8188.proxy.runpod.net
+======================================================================
+MSG

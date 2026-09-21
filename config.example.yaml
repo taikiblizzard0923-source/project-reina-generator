@@ -1,7 +1,22 @@
 # ComfyUI サーバ設定
 comfyui:
+  # リモート（RunPod など）の場合はここに URL を入れる。
+  # RunPod: Pod の Connect → "HTTP Service [Port 8188]" の URL
+  #   url: "https://xxxxxxxxxxxx-8188.proxy.runpod.net"
+  # 環境変数 REINA_COMFY_URL でも上書きできる（url より優先）
+  url: null
+
+  # url が null のときに使われるローカル接続先
   host: "127.0.0.1"
   port: 8188
+
+  verify_tls: true
+  # リバースプロキシで認証をかけている場合のみ
+  auth: {}
+  #  bearer: "..."           # または REINA_COMFY_TOKEN
+  #  username: "..."         # または REINA_COMFY_USER
+  #  password: "..."         # または REINA_COMFY_PASSWORD
+
   # ComfyUI の output ディレクトリから画像を直接コピーする場合に指定（未設定なら API 経由で取得）
   output_dir: null
 
