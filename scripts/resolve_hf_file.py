@@ -2,7 +2,9 @@
 
 配布者ごとにファイル名がバラバラなので、決め打ちせず repo の中身を見て選ぶ。
 
-usage: resolve_hf_file.py REPO[,REPO...] EXT [PREFER ...]
+usage: resolve_hf_file.py REPO[,REPO...] EXT [+REQUIRED | PREFER ...]
+  "+xxx" は必須条件。満たす候補が無ければ黙って別物を選ばず失敗する
+  （世代違いのモデルを掴んで動かない、という事故を防ぐため）
   stdout: "<repo>\t<path>"   （見つからなければ終了コード 1）
   stderr: 候補一覧（* が選ばれたもの）
 """
@@ -22,7 +24,9 @@ def main() -> int:
 
     repos = [r.strip() for r in sys.argv[1].split(",") if r.strip()]
     ext = sys.argv[2].lower()
-    prefer = [p.lower() for p in sys.argv[3:] if p]
+    args = [a.lower() for a in sys.argv[3:] if a]
+    required = [a[1:] for a in args if a.startswith("+")]
+    prefer = [a for a in args if not a.startswith("+")]
 
     candidates: list[tuple[str, str]] = []
     for repo in repos:
@@ -36,6 +40,19 @@ def main() -> int:
     if not candidates:
         print(f"{'/'.join(repos)} に {ext} が見つかりません", file=sys.stderr)
         return 1
+
+    if required:
+        kept = [c for c in candidates if all(r in c[1].lower() for r in required)]
+        if not kept:
+            print(
+                f"必須条件 {required} を満たす {ext} が {repos} にありません。",
+                file=sys.stderr,
+            )
+            print("  実在した候補:", file=sys.stderr)
+            for repo, path in sorted(candidates)[:40]:
+                print(f"     {repo}/{path}", file=sys.stderr)
+            return 1
+        candidates = kept
 
     def score(item: tuple[str, str]) -> tuple:
         repo, path = item

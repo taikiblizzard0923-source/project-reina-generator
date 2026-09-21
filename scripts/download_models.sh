@@ -13,10 +13,12 @@ COMFY="${1:-/workspace/ComfyUI}"
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 QUANT="${QUANT:-Q4_K_M}"
 
-GGUF_REPO="${GGUF_REPO:-abenzerps/Qwen-Image-2.1-GGUF,QuantStack/Qwen-Image-GGUF}"
-# テキストエンコーダ / VAE は Comfy-Org の公式分割版（2.1 を先に探す）
-TE_REPO="${TE_REPO:-Comfy-Org/Qwen-Image-2.1_ComfyUI,Comfy-Org/Qwen-Image_ComfyUI}"
-VAE_REPO="${VAE_REPO:-Comfy-Org/Qwen-Image-2.1_ComfyUI,Comfy-Org/Qwen-Image_ComfyUI}"
+GGUF_REPO="${GGUF_REPO:-abenzerps/Qwen-Image-2.1-GGUF,AlperKTS/Qwen-Image-2.1-GGUF,Abiray/Qwen-Image-2.1-GGUF}"
+# テキストエンコーダ / VAE は Comfy-Org の公式リパック（2.1 は Qwen3-VL 8B 系）
+TE_REPO="${TE_REPO:-Comfy-Org/Qwen-Image-2.1}"
+VAE_REPO="${VAE_REPO:-Comfy-Org/Qwen-Image-2.1}"
+# int8 は約9GB、bf16 は約17.5GB。TE_VARIANT=bf16 で切り替え
+TE_VARIANT="${TE_VARIANT:-int8}"
 
 command -v hf >/dev/null 2>&1 || pip install -q -U "huggingface_hub[cli]"
 python3 -c "import huggingface_hub" 2>/dev/null || pip install -q -U huggingface_hub
@@ -50,13 +52,14 @@ if [ -n "${GGUF_FILE:-}" ]; then
   hf download "${GGUF_REPO%%,*}" "$GGUF_FILE" --local-dir "$COMFY/models/unet"
 else
   fetch "拡散モデル(GGUF)" "$COMFY/models/unet" "$GGUF_REPO" ".gguf" \
-    "$(echo "$QUANT" | tr '[:upper:]' '[:lower:]')" "2.1"
+    "+$(echo "$QUANT" | tr '[:upper:]' '[:lower:]')" "2.1"
 fi
 
+# +qwen3vl は必須。旧世代の qwen_2.5_vl_7b を掴むと 2.1 では動かない
 fetch "テキストエンコーダ" "$COMFY/models/text_encoders" "$TE_REPO" ".safetensors" \
-  "text_encoders" "qwen3vl" "${TE_PREFER:-int8}"
+  "+qwen3vl" "+text_encoders" "$TE_VARIANT"
 
-fetch "VAE" "$COMFY/models/vae" "$VAE_REPO" ".safetensors" "vae" "2.1"
+fetch "VAE" "$COMFY/models/vae" "$VAE_REPO" ".safetensors" "+vae" "2.1"
 
 # split_files/... やサブディレクトリを models 直下に平す
 for dir in unet text_encoders vae; do

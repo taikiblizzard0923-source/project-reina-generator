@@ -4,6 +4,7 @@
 #
 #   bash go.sh          セットアップをバックグラウンドで開始
 #   bash go.sh models   モデル取得だけやり直す（ComfyUI は入れ直さない）
+#   bash go.sh clean    中断した/誤って掴んだダウンロードを消す
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
 #   bash go.sh ps       まだ動いているか確認
 #   bash go.sh start    ComfyUI を起動
@@ -38,6 +39,25 @@ case "${1:-setup}" in
     sleep 2
     echo "開始しました (pid $!)"
     echo "進捗:  bash go.sh log"
+    ;;
+
+  clean)
+    pkill -f "hf download" 2>/dev/null && echo "ダウンロードを中断しました" || true
+    sleep 1
+    echo "=== 掃除 ==="
+    # 途中で止まった一時ファイルと、平す前のサブディレクトリ
+    find "$COMFY/models" -name '*.incomplete' -delete 2>/dev/null || true
+    rm -rf "$COMFY"/models/*/.cache 2>/dev/null || true
+    # Qwen-Image 2.1 は Qwen3-VL 8B 系が必要。世代違いを掴んでいたら消す
+    while IFS= read -r f; do
+      case "$(basename "$f" | tr '[:upper:]' '[:lower:]')" in
+        *qwen3vl*) ;;
+        *) echo "  削除: $f"; rm -f "$f" ;;
+      esac
+    done < <(find "$COMFY/models/text_encoders" -type f -name '*.safetensors' 2>/dev/null)
+    find "$COMFY/models" -mindepth 2 -type d -empty -delete 2>/dev/null || true
+    echo
+    exec "$0" ps
     ;;
 
   log)
@@ -79,6 +99,6 @@ case "${1:-setup}" in
     ;;
 
   *)
-    sed -n '2,12p' "${BASH_SOURCE[0]}"
+    sed -n '2,13p' "${BASH_SOURCE[0]}"
     ;;
 esac
