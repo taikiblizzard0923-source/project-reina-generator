@@ -3,6 +3,7 @@
 # JupyterLab のターミナルは貼り付けができないので、打鍵数を最小にしてある。
 #
 #   bash go.sh          セットアップをバックグラウンドで開始
+#   bash go.sh models   モデル取得だけやり直す（ComfyUI は入れ直さない）
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
 #   bash go.sh ps       まだ動いているか確認
 #   bash go.sh start    ComfyUI を起動
@@ -22,6 +23,18 @@ case "${1:-setup}" in
     fi
     echo "セットアップをバックグラウンドで開始します → $LOG"
     nohup bash "$HERE/scripts/runpod_setup.sh" >"$LOG" 2>&1 &
+    sleep 2
+    echo "開始しました (pid $!)"
+    echo "進捗:  bash go.sh log"
+    ;;
+
+  models)
+    if pgrep -f "download_models.sh|runpod_setup.sh" >/dev/null; then
+      echo "すでに実行中です。進捗は:  bash go.sh log"
+      exit 0
+    fi
+    echo "モデル取得だけ再実行します → $LOG"
+    nohup bash "$HERE/scripts/download_models.sh" "$COMFY" >"$LOG" 2>&1 &
     sleep 2
     echo "開始しました (pid $!)"
     echo "進捗:  bash go.sh log"
@@ -66,6 +79,6 @@ case "${1:-setup}" in
     ;;
 
   *)
-    sed -n '2,11p' "${BASH_SOURCE[0]}"
+    sed -n '2,12p' "${BASH_SOURCE[0]}"
     ;;
 esac
