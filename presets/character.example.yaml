@@ -1,0 +1,24 @@
+# 参照画像の人物の「動かしたくない特徴」を言葉でも固定しておくと同一性が上がる。
+# presets/character.yaml にコピーして自分用に書き換える（character.yaml は .gitignore 済み）。
+name: reina
+
+identity: >-
+  a 24-year-old Japanese woman
+
+details:
+  - "long straight black hair with blunt bangs"
+  - "dark brown almond-shaped eyes"
+  - "slim build, fair skin"
+  - "small mole under the left eye"
+  - "natural light makeup"
+
+style: >-
+  photorealistic portrait photograph, shot on a full-frame DSLR,
+  natural skin texture with visible pores, true-to-life color
+
+quality: >-
+  85mm lens, shallow depth of field, soft natural lighting,
+  high detail, sharp focus on the eyes
+
+# 空にすると prompts.DEFAULT_NEGATIVE が使われる
+negative: ""

@@ -1,0 +1,43 @@
+# ComfyUI サーバ設定
+comfyui:
+  host: "127.0.0.1"
+  port: 8188
+  # ComfyUI の output ディレクトリから画像を直接コピーする場合に指定（未設定なら API 経由で取得）
+  output_dir: null
+
+# ComfyUI の models/ 配下に置いたファイル名をそのまま書く
+# ls ComfyUI/models/diffusion_models/ などで確認して合わせること
+models:
+  # models/unet/ または models/diffusion_models/ に置いた GGUF
+  unet_gguf: "Qwen-Image-2.1-Q4_K_M.gguf"
+  # models/text_encoders/ : Qwen-Image 2.1 は Qwen3-VL 8B 系
+  # 例: qwen3vl_8b_bf16.safetensors / qwen3vl_8b_int8_convrot.safetensors
+  # 旧 Qwen-Image を使う場合は qwen_2.5_vl_7b_fp8_scaled.safetensors
+  text_encoder: "qwen3vl_8b_int8_convrot.safetensors"
+  # text_encoder が .gguf の場合は true（CLIPLoaderGGUF を使う）
+  text_encoder_is_gguf: false
+  # models/vae/
+  vae: "qwen_image_2.1_vae_bf16.safetensors"
+  # CLIPLoader の type 引数。ComfyUI のバージョンにより "qwen_image" など
+  clip_type: "qwen_image"
+
+# 生成デフォルト
+defaults:
+  width: 1024
+  height: 1536
+  steps: 20
+  cfg: 2.5
+  shift: 3.1
+  sampler: "euler"
+  scheduler: "simple"
+  denoise: 1.0
+  batch_size: 1
+  # 参照画像モード時、参照画像をこの総ピクセル数(メガピクセル)にリサイズ
+  reference_megapixels: 1.0
+  # 参照画像モードの denoise（低いほど参照に忠実）
+  reference_denoise: 1.0
+
+# LoRA（任意）。顔の同一性を固めたい場合に使う
+loras: []
+  # - name: "reina_v1.safetensors"
+  #   strength: 0.85

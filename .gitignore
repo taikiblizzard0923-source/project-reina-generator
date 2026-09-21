@@ -1,0 +1,11 @@
+config.yaml
+output/*
+!output/.gitkeep
+input/*
+!input/.gitkeep
+presets/character.yaml
+__pycache__/
+*.pyc
+.venv/
+*.gguf
+*.safetensors

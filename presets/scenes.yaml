@@ -1,0 +1,41 @@
+# そのまま 1シーン = 1枚。width/height/steps/cfg/seed はシーン単位で上書き可。
+scenes:
+  - id: studio_white
+    prompt: "standing in a bright photo studio against a seamless white backdrop, wearing a simple white blouse, soft key light, looking at the camera"
+    width: 1024
+    height: 1536
+
+  - id: cafe_window
+    prompt: "sitting by a cafe window on an overcast afternoon, wearing a beige knit cardigan, holding a coffee cup, soft diffused window light, candid expression"
+    width: 1024
+    height: 1536
+
+  - id: city_night
+    prompt: "walking on a Tokyo street at night, neon signs bokeh in the background, wearing a black leather jacket, cinematic color grading"
+    width: 1024
+    height: 1536
+
+  - id: park_golden_hour
+    prompt: "in a park during golden hour, wearing a light summer dress, wind in her hair, warm backlight and lens flare"
+    width: 1152
+    height: 1536
+
+  - id: office_desk
+    prompt: "at an office desk, wearing a navy blazer and white shirt, soft overhead lighting, professional headshot framing"
+    width: 1024
+    height: 1280
+
+  - id: seaside
+    prompt: "on a beach at sunset, wearing a linen shirt, ocean and sky in the background, warm rim light"
+    width: 1536
+    height: 1024
+
+  - id: home_morning
+    prompt: "in a bright apartment kitchen in the morning, wearing a loose grey sweater, natural window light, relaxed smile"
+    width: 1024
+    height: 1536
+
+  - id: closeup_portrait
+    prompt: "extreme close-up portrait, neutral expression, soft rembrandt lighting on a dark grey background"
+    width: 1024
+    height: 1024

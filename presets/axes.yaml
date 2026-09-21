@@ -1,0 +1,26 @@
+# 軸の組み合わせで大量バリエーションを作る（reina mix で使用）
+axes:
+  outfit:
+    - "wearing a white blouse and navy skirt"
+    - "wearing an oversized beige trench coat"
+    - "wearing a black turtleneck sweater"
+    - "wearing a light blue summer dress"
+    - "wearing a grey hoodie and jeans"
+
+  location:
+    - "in a minimalist photo studio"
+    - "on a quiet residential street in Tokyo"
+    - "inside a wood-paneled cafe"
+    - "in a modern office lobby"
+    - "on a park path lined with trees"
+
+  lighting:
+    - "soft overcast daylight"
+    - "warm golden hour backlight"
+    - "cool blue evening light"
+    - "soft studio key light with a large softbox"
+
+  framing:
+    - "full body shot"
+    - "waist-up portrait"
+    - "head and shoulders portrait"
