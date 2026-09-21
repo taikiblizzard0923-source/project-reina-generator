@@ -5,6 +5,7 @@
 #   bash go.sh          セットアップをバックグラウンドで開始
 #   bash go.sh models   モデル取得だけやり直す（ComfyUI は入れ直さない）
 #   bash go.sh official 公式 safetensors 版の拡散モデルに切り替える（VRAM 24GB+）
+#   bash go.sh info <repo>  HF リポジトリの中身とサイズを見る（DL前の確認用）
 #   bash go.sh clean    中断した/誤って掴んだダウンロードを消す
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
 #   bash go.sh ps       まだ動いているか確認
@@ -52,6 +53,11 @@ case "${1:-setup}" in
     sleep 2
     echo "開始しました (pid $!)"
     echo "進捗:  bash go.sh log"
+    ;;
+
+  info)
+    repo="${2:-vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF}"
+    python3 "$HERE/scripts/hf_info.py" "$repo"
     ;;
 
   clean)
@@ -113,6 +119,6 @@ case "${1:-setup}" in
     ;;
 
   *)
-    sed -n '2,14p' "${BASH_SOURCE[0]}"
+    sed -n '2,15p' "${BASH_SOURCE[0]}"
     ;;
 esac

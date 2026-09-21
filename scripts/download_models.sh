@@ -13,7 +13,7 @@ COMFY="${1:-/workspace/ComfyUI}"
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 QUANT="${QUANT:-Q4_K_M}"
 
-GGUF_REPO="${GGUF_REPO:-abenzerps/Qwen-Image-2.1-GGUF,AlperKTS/Qwen-Image-2.1-GGUF,Abiray/Qwen-Image-2.1-GGUF}"
+GGUF_REPO="${GGUF_REPO:-vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF,AlperKTS/Qwen-Image-2.1-GGUF,Abiray/Qwen-Image-2.1-GGUF,abenzerps/Qwen-Image-2.1-GGUF}"
 # テキストエンコーダ / VAE は Comfy-Org の公式リパック（2.1 は Qwen3-VL 8B 系）
 TE_REPO="${TE_REPO:-Comfy-Org/Qwen-Image-2.1}"
 VAE_REPO="${VAE_REPO:-Comfy-Org/Qwen-Image-2.1}"

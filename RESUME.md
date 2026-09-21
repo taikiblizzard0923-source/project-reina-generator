@@ -7,7 +7,7 @@
 | ComfyUI | `/workspace/ComfyUI` に導入済み |
 | テキストエンコーダ | ✅ `qwen3vl_8b_int8_convrot.safetensors` |
 | VAE | ✅ `qwen_image_2.1_vae_bf16.safetensors` |
-| 拡散モデル（GGUF） | ❌ 使えない（ComfyUI-GGUF が Qwen-Image 2.1 未対応） |
+| 拡散モデル（GGUF） | ❌ `abenzerps` 版は `Unknown model architecture` で失敗。別配布元（`vantagewithai`）は未検証 |
 | 拡散モデル（公式 safetensors） | ⏳ **ここから再開** |
 | `config.yaml` | ダウンロード完了時に自動更新される |
 
@@ -39,7 +39,21 @@ Notebook（Python 3）のセルで以下を順に実行します。
 
 ---
 
-## 3. 公式の拡散モデルを取得（約20GB / 10分前後）
+## 3. 拡散モデルを取得
+
+### まずサイズを確認（任意）
+
+```python
+!cd /workspace/project-reina-generator && bash go.sh info Comfy-Org/Qwen-Image-2.1
+```
+
+```python
+!cd /workspace/project-reina-generator && bash go.sh info vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF
+```
+
+ファイル一覧と実サイズ、README が表示される。
+
+### 公式 safetensors（確実に動く）
 
 ```python
 !cd /workspace/project-reina-generator && bash go.sh official
@@ -56,6 +70,18 @@ Notebook（Python 3）のセルで以下を順に実行します。
 ```python
 !tail -n 30 /workspace/setup.log
 ```
+
+### GGUF を試す場合（任意 / 小容量）
+
+`vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF` は ComfyUI-GGUF 向けに
+用意されたもの。ただし ComfyUI-GGUF 側が `qwen_image` アーキテクチャに
+対応していないと `Unknown model architecture` で失敗する。
+
+```python
+!cd /workspace/project-reina-generator && GGUF_REPO=vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF bash scripts/download_models.sh /workspace/ComfyUI
+```
+
+失敗しても公式 safetensors に戻せる（`bash go.sh official`）。
 
 ---
 
