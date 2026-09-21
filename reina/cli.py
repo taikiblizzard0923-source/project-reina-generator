@@ -131,22 +131,31 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         _log("[NG] 参照画像エンコーダが見つかりません (TextEncodeQwenImageEditPlus 等)")
         _log("     → ComfyUI を最新に更新するか、t2i + LoRA 運用に切り替えてください")
 
+    clip_class = "CLIPLoaderGGUF" if cfg.models.get("text_encoder_is_gguf") else "CLIPLoader"
     checks = (
-        ("unet", ("unet", "diffusion_models"), cfg.models["unet_gguf"]),
-        ("text_encoder", ("text_encoders", "clip"), cfg.models["text_encoder"]),
-        ("vae", ("vae",), cfg.models["vae"]),
+        # ラベル, 期待値, (ノード, 入力名), フォールバックで見る models/ のフォルダ
+        ("unet", cfg.models["unet_gguf"], ("UnetLoaderGGUF", "unet_name"),
+         ("unet_gguf", "unet", "diffusion_models")),
+        ("text_encoder", cfg.models["text_encoder"], (clip_class, "clip_name"),
+         ("text_encoders", "clip", "clip_gguf")),
+        ("vae", cfg.models["vae"], ("VAELoader", "vae_name"), ("vae",)),
     )
-    for label, folders, expected in checks:
-        found: list[str] = []
-        for folder in folders:
-            found.extend(client.model_list(folder))
+    for label, expected, (node, input_name), folders in checks:
+        # ノードの選択肢が最も確実。取れなければ models/ 一覧にフォールバック
+        found = client.node_options(node, input_name)
+        source = f"{node}.{input_name}"
+        if not found:
+            found = [f for folder in folders for f in client.model_list(folder)]
+            source = "models/"
         if expected in found:
             _log(f"[OK] {label}: {expected}")
         else:
             ok = False
-            _log(f"[NG] {label}: '{expected}' が見つかりません")
+            _log(f"[NG] {label}: '{expected}' が {source} の選択肢にありません")
             if found:
                 _log(f"     候補: {', '.join(sorted(set(found))[:12])}")
+            else:
+                _log(f"     {source} から候補を取得できませんでした")
 
     return 0 if ok else 1
 

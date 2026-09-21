@@ -94,6 +94,19 @@ class ComfyClient:
     def has_node(self, node_class: str) -> bool:
         return bool(self.object_info(node_class))
 
+    def node_options(self, node_class: str, input_name: str) -> list[str]:
+        """ノードの選択肢一覧を返す。
+
+        ComfyUI が実際に受け付ける値そのものなので、models/ のフォルダ名を
+        推測するより確実（例: GGUF は標準の unet フォルダには出てこない）。
+        """
+        spec = self.object_info(node_class).get(node_class, {}).get("input", {})
+        for section in ("required", "optional"):
+            entry = spec.get(section, {}).get(input_name)
+            if isinstance(entry, list) and entry and isinstance(entry[0], list):
+                return [str(v) for v in entry[0]]
+        return []
+
     def model_list(self, folder: str) -> list[str]:
         """models/<folder> に置かれているファイル一覧（ComfyUI が認識しているもの）。"""
         resp = self.session.get(

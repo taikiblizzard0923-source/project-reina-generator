@@ -24,7 +24,7 @@ comfyui:
 # ls ComfyUI/models/diffusion_models/ などで確認して合わせること
 models:
   # models/unet/ または models/diffusion_models/ に置いた GGUF
-  unet_gguf: "Qwen-Image-2.1-Q4_K_M.gguf"
+  unet_gguf: "qwen-image-2.1-Q4_K_M.gguf"
   # models/text_encoders/ : Qwen-Image 2.1 は Qwen3-VL 8B 系
   # 例: qwen3vl_8b_bf16.safetensors / qwen3vl_8b_int8_convrot.safetensors
   # 旧 Qwen-Image を使う場合は qwen_2.5_vl_7b_fp8_scaled.safetensors
