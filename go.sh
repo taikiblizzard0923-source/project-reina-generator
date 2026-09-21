@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# スマホのターミナルから短く打つための入口。
+# JupyterLab のターミナルは貼り付けができないので、打鍵数を最小にしてある。
+#
+#   bash go.sh          セットアップをバックグラウンドで開始
+#   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
+#   bash go.sh ps       まだ動いているか確認
+#   bash go.sh start    ComfyUI を起動
+#   bash go.sh check    doctor（疎通・モデル確認）
+#   bash go.sh url      接続用 URL を表示
+set -uo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG=/workspace/setup.log
+COMFY=/workspace/ComfyUI
+
+case "${1:-setup}" in
+  setup)
+    if pgrep -f runpod_setup.sh >/dev/null; then
+      echo "すでに実行中です。進捗は:  bash go.sh log"
+      exit 0
+    fi
+    echo "セットアップをバックグラウンドで開始します → $LOG"
+    nohup bash "$HERE/scripts/runpod_setup.sh" >"$LOG" 2>&1 &
+    sleep 2
+    echo "開始しました (pid $!)"
+    echo "進捗:  bash go.sh log"
+    ;;
+
+  log)
+    [ -f "$LOG" ] || { echo "$LOG がまだありません。まず:  bash go.sh"; exit 1; }
+    tail -n 30 -f "$LOG"
+    ;;
+
+  ps)
+    if pgrep -af "runpod_setup.sh|hf |pip " >/dev/null; then
+      echo "=== 実行中のプロセス ==="
+      pgrep -af "runpod_setup.sh|hf |pip "
+    else
+      echo "セットアップのプロセスは動いていません。"
+    fi
+    echo
+    echo "=== ダウンロード済みモデル ==="
+    for d in unet text_encoders vae; do
+      printf '%-16s ' "$d"
+      if [ -d "$COMFY/models/$d" ] && [ -n "$(ls -A "$COMFY/models/$d" 2>/dev/null)" ]; then
+        du -sh "$COMFY/models/$d" 2>/dev/null | cut -f1
+        ls -1 "$COMFY/models/$d" | sed 's/^/                 /'
+      else
+        echo "(空)"
+      fi
+    done
+    ;;
+
+  start)
+    bash "$HERE/scripts/runpod_start.sh" --daemon
+    ;;
+
+  check)
+    cd "$HERE" && python -m reina doctor
+    ;;
+
+  url)
+    id="${RUNPOD_POD_ID:-<POD_ID>}"
+    echo "ComfyUI:  https://${id}-8188.proxy.runpod.net"
+    ;;
+
+  *)
+    sed -n '2,11p' "${BASH_SOURCE[0]}"
+    ;;
+esac
