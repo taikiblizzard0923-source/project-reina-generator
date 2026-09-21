@@ -72,13 +72,8 @@ fetch "テキストエンコーダ" "$COMFY/models/text_encoders" "$TE_REPO" ".s
 
 fetch "VAE" "$COMFY/models/vae" "$VAE_REPO" ".safetensors" "+vae" "2.1"
 
-# split_files/... やサブディレクトリを models 直下に平す
-for dir in unet diffusion_models text_encoders vae; do
-  [ -d "$COMFY/models/$dir" ] || continue
-  find "$COMFY/models/$dir" -mindepth 2 -type f \( -name '*.safetensors' -o -name '*.gguf' \) \
-    -exec mv -n {} "$COMFY/models/$dir/" \; 2>/dev/null || true
-  find "$COMFY/models/$dir" -mindepth 1 -type d -empty -delete 2>/dev/null || true
-done
+# repo のパス構造を models/<種別>/ 直下に平す（重複は削除）
+bash "$HERE/flatten_models.sh" "$COMFY"
 
 echo
 echo "==> 取得結果"

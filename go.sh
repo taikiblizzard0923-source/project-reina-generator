@@ -68,7 +68,7 @@ case "${1:-setup}" in
         *) echo "  削除: $f"; rm -f "$f" ;;
       esac
     done < <(find "$COMFY/models/text_encoders" -type f -name '*.safetensors' 2>/dev/null)
-    find "$COMFY/models" -mindepth 2 -type d -empty -delete 2>/dev/null || true
+    bash "$HERE/scripts/flatten_models.sh" "$COMFY"
     echo
     exec bash "${BASH_SOURCE[0]}" ps
     ;;
@@ -87,8 +87,9 @@ case "${1:-setup}" in
     fi
     echo
     echo "=== ダウンロード済みモデル ==="
-    for d in unet text_encoders vae; do
-      printf '%-16s ' "$d"
+    for d in unet diffusion_models text_encoders vae; do
+      [ -d "$COMFY/models/$d" ] || continue
+      printf '%-18s ' "$d"
       if [ -d "$COMFY/models/$d" ] && [ -n "$(ls -A "$COMFY/models/$d" 2>/dev/null)" ]; then
         du -sh "$COMFY/models/$d" 2>/dev/null | cut -f1
         ls -1 "$COMFY/models/$d" | sed 's/^/                 /'
