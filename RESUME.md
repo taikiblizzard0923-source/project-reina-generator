@@ -4,7 +4,7 @@
 
 | 項目 | 状態 |
 |---|---|
-| ComfyUI | `/workspace/ComfyUI` に導入済み |
+| ComfyUI | `/workspace/ComfyUI` に導入済み（**v0.37.0 以降が必要**。2.1 対応はこのバージョンから） |
 | テキストエンコーダ | ✅ `qwen3vl_8b_int8_convrot.safetensors` |
 | VAE | ✅ `qwen_image_2.1_vae_bf16.safetensors` |
 | 拡散モデル（GGUF） | ❌ `abenzerps` 版は `Unknown model architecture` で失敗。別配布元（`vantagewithai`）は未検証 |
@@ -74,8 +74,9 @@ Notebook（Python 3）のセルで以下を順に実行します。
 ### GGUF を試す場合（任意 / 小容量）
 
 `vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF` は ComfyUI-GGUF 向けに
-用意されたもの。ただし ComfyUI-GGUF 側が `qwen_image` アーキテクチャに
-対応していないと `Unknown model architecture` で失敗する。
+用意されたもの。ただし ComfyUI 本体 v0.37.0 が対応したのは safetensors 側で、
+GGUF ローダ（city96/ComfyUI-GGUF）は別プロジェクトのため未対応のまま。
+`Unknown model architecture` で失敗する可能性が高い。
 
 ```python
 !cd /workspace/project-reina-generator && GGUF_REPO=vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF bash scripts/download_models.sh /workspace/ComfyUI

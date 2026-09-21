@@ -62,6 +62,21 @@ def _pick_encoder(client: ComfyClient, override: str | None) -> str:
     return EDIT_ENCODER_CANDIDATES[0]
 
 
+# Qwen-Image 2.1 は ComfyUI v0.37.0 で正式サポートされた
+MIN_COMFY_VERSION = (0, 37, 0)
+
+
+def _version_tuple(text: str) -> tuple[int, ...]:
+    parts: list[int] = []
+    for chunk in str(text).lstrip("v").split("."):
+        digits = "".join(c for c in chunk if c.isdigit())
+        if not digits:
+            break
+        parts.append(int(digits))
+    # "0.37" が (0,37) となって (0,37,0) より小さく扱われないよう桁を揃える
+    return tuple((parts + [0, 0, 0])[:3])
+
+
 def _out_dir(args: argparse.Namespace) -> Path:
     base = Path(args.out) if args.out else ROOT / "output"
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -106,6 +121,20 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         _log("     RunPod  : Pod が Running か、8188 が HTTP ポートとして公開されているか確認")
         return 1
 
+    ok = True
+    version = (stats.get("system") or {}).get("comfyui_version")
+    if version:
+        if _version_tuple(version) >= MIN_COMFY_VERSION:
+            _log(f"[OK] ComfyUI version {version}")
+        else:
+            ok = False
+            _log(f"[NG] ComfyUI version {version}")
+            _log(
+                "     Qwen-Image 2.1 は v"
+                + ".".join(map(str, MIN_COMFY_VERSION))
+                + " 以降が必要です（git -C ~/ComfyUI pull して再起動）"
+            )
+
     devices = stats.get("devices") or []
     if devices:
         dev = devices[0]
@@ -118,7 +147,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     unet_name = str(cfg.models["unet_gguf"])
     unet_node = "UnetLoaderGGUF" if unet_name.lower().endswith(".gguf") else "UNETLoader"
 
-    ok = True
     for node in (unet_node, "CLIPLoader", "VAELoader", "KSampler", "ModelSamplingAuraFlow"):
         present = client.has_node(node)
         ok &= present
