@@ -2,7 +2,8 @@
 
 配布者ごとにファイル名が違うので、手で転記させる代わりに実物から拾う。
 
-usage: sync_config.py [COMFY_DIR] [CONFIG_PATH]
+usage: sync_config.py [COMFY_DIR] [CONFIG_PATH] [MODEL_FORMAT]
+  MODEL_FORMAT: gguf | safetensors | auto（既定: auto = safetensors を優先）
 """
 
 from __future__ import annotations
@@ -32,9 +33,17 @@ def pick(directory: Path, exts: tuple[str, ...], prefer: tuple[str, ...] = ()) -
 def main() -> int:
     comfy = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/workspace/ComfyUI")
     config_path = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "config.yaml"
+    fmt = (sys.argv[3] if len(sys.argv) > 3 else "auto").lower()
 
     models = comfy / "models"
-    unet = pick(models / "unet", (".gguf",)) or pick(models / "diffusion_models", (".gguf",))
+    gguf = pick(models / "unet", (".gguf",)) or pick(models / "diffusion_models", (".gguf",))
+    safet = pick(models / "diffusion_models", (".safetensors",), prefer=("2.1", "qwen"))
+    if fmt == "gguf":
+        unet = gguf or safet
+    elif fmt == "safetensors":
+        unet = safet or gguf
+    else:
+        unet = safet or gguf
     text_encoder = pick(
         models / "text_encoders", (".safetensors", ".gguf"), prefer=("qwen3vl", "qwen")
     ) or pick(models / "clip", (".safetensors", ".gguf"), prefer=("qwen3vl", "qwen"))
@@ -54,6 +63,8 @@ def main() -> int:
 
     if text_encoder:
         data["models"]["text_encoder_is_gguf"] = text_encoder.lower().endswith(".gguf")
+    if unet and not unet.lower().endswith(".gguf"):
+        data["models"].setdefault("weight_dtype", "default")
 
     config_path.write_text(
         yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8"

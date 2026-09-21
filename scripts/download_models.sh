@@ -20,6 +20,13 @@ VAE_REPO="${VAE_REPO:-Comfy-Org/Qwen-Image-2.1}"
 # int8 は約9GB、bf16 は約17.5GB。TE_VARIANT=bf16 で切り替え
 TE_VARIANT="${TE_VARIANT:-int8}"
 
+# 拡散モデルの形式:
+#   gguf        … 量子化GGUF（VRAM 8-16GB 向け。ComfyUI-GGUF が対応している必要あり）
+#   safetensors … Comfy-Org 公式（VRAM 24GB 以上向け。互換性の問題が起きにくい）
+MODEL_FORMAT="${MODEL_FORMAT:-gguf}"
+DIT_REPO="${DIT_REPO:-Comfy-Org/Qwen-Image-2.1}"
+DIT_VARIANT="${DIT_VARIANT:-int8}"
+
 command -v hf >/dev/null 2>&1 || pip install -q -U "huggingface_hub[cli]"
 python3 -c "import huggingface_hub" 2>/dev/null || pip install -q -U huggingface_hub
 
@@ -46,8 +53,12 @@ fetch() {
   hf download "$repo" "$path" --local-dir "$dest"
 }
 
-# 拡散モデル(GGUF)
-if [ -n "${GGUF_FILE:-}" ]; then
+# 拡散モデル
+if [ "$MODEL_FORMAT" = "safetensors" ]; then
+  mkdir -p "$COMFY/models/diffusion_models"
+  fetch "拡散モデル(safetensors)" "$COMFY/models/diffusion_models" "$DIT_REPO" ".safetensors" \
+    "+diffusion_models" "+2.1" "$DIT_VARIANT"
+elif [ -n "${GGUF_FILE:-}" ]; then
   echo "==> 拡散モデル(GGUF): ${GGUF_REPO%%,*} / $GGUF_FILE （明示指定）"
   hf download "${GGUF_REPO%%,*}" "$GGUF_FILE" --local-dir "$COMFY/models/unet"
 else
@@ -62,7 +73,8 @@ fetch "テキストエンコーダ" "$COMFY/models/text_encoders" "$TE_REPO" ".s
 fetch "VAE" "$COMFY/models/vae" "$VAE_REPO" ".safetensors" "+vae" "2.1"
 
 # split_files/... やサブディレクトリを models 直下に平す
-for dir in unet text_encoders vae; do
+for dir in unet diffusion_models text_encoders vae; do
+  [ -d "$COMFY/models/$dir" ] || continue
   find "$COMFY/models/$dir" -mindepth 2 -type f \( -name '*.safetensors' -o -name '*.gguf' \) \
     -exec mv -n {} "$COMFY/models/$dir/" \; 2>/dev/null || true
   find "$COMFY/models/$dir" -mindepth 1 -type d -empty -delete 2>/dev/null || true
@@ -70,11 +82,12 @@ done
 
 echo
 echo "==> 取得結果"
-for dir in unet text_encoders vae; do
-  printf '%-16s %s\n' "$dir" "$(du -sh "$COMFY/models/$dir" 2>/dev/null | cut -f1)"
+for dir in unet diffusion_models text_encoders vae; do
+  [ -d "$COMFY/models/$dir" ] || continue
+  printf '%-18s %s\n' "$dir" "$(du -sh "$COMFY/models/$dir" 2>/dev/null | cut -f1)"
   ls -1 "$COMFY/models/$dir" 2>/dev/null | sed 's/^/                 /'
 done
 
 echo
 echo "==> config.yaml に実ファイル名を反映"
-python3 "$HERE/sync_config.py" "$COMFY" "$(dirname "$HERE")/config.yaml"
+python3 "$HERE/sync_config.py" "$COMFY" "$(dirname "$HERE")/config.yaml" "$MODEL_FORMAT"

@@ -4,6 +4,7 @@
 #
 #   bash go.sh          セットアップをバックグラウンドで開始
 #   bash go.sh models   モデル取得だけやり直す（ComfyUI は入れ直さない）
+#   bash go.sh official 公式 safetensors 版の拡散モデルに切り替える（VRAM 24GB+）
 #   bash go.sh clean    中断した/誤って掴んだダウンロードを消す
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
 #   bash go.sh ps       まだ動いているか確認
@@ -36,6 +37,18 @@ case "${1:-setup}" in
     fi
     echo "モデル取得だけ再実行します → $LOG"
     nohup bash "$HERE/scripts/download_models.sh" "$COMFY" >"$LOG" 2>&1 &
+    sleep 2
+    echo "開始しました (pid $!)"
+    echo "進捗:  bash go.sh log"
+    ;;
+
+  official)
+    if pgrep -f "download_models.sh|runpod_setup.sh" >/dev/null; then
+      echo "すでに実行中です。進捗は:  bash go.sh log"
+      exit 0
+    fi
+    echo "公式 safetensors 版の拡散モデルを取得します → $LOG"
+    MODEL_FORMAT=safetensors nohup bash "$HERE/scripts/download_models.sh" "$COMFY" >"$LOG" 2>&1 &
     sleep 2
     echo "開始しました (pid $!)"
     echo "進捗:  bash go.sh log"
@@ -99,6 +112,6 @@ case "${1:-setup}" in
     ;;
 
   *)
-    sed -n '2,13p' "${BASH_SOURCE[0]}"
+    sed -n '2,14p' "${BASH_SOURCE[0]}"
     ;;
 esac

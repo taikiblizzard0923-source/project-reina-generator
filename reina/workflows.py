@@ -41,10 +41,18 @@ class WorkflowBuilder:
 
     def _loaders(self, graph: Graph) -> tuple[list, list, list]:
         """UNet / CLIP / VAE ローダを graph に足し、それぞれの出力参照を返す。"""
-        graph["1"] = {
-            "class_type": "UnetLoaderGGUF",
-            "inputs": {"unet_name": self.models["unet_gguf"]},
-        }
+        # .gguf は ComfyUI-GGUF のローダ、.safetensors は ComfyUI 標準のローダ
+        name = str(self.models["unet_gguf"])
+        if name.lower().endswith(".gguf"):
+            graph["1"] = {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": name}}
+        else:
+            graph["1"] = {
+                "class_type": "UNETLoader",
+                "inputs": {
+                    "unet_name": name,
+                    "weight_dtype": self.models.get("weight_dtype", "default"),
+                },
+            }
         model_ref: list = ["1", 0]
 
         for index, lora in enumerate(self.loras):

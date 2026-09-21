@@ -115,8 +115,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     else:
         _log(f"[OK] ComfyUI {client.base_url}")
 
+    unet_name = str(cfg.models["unet_gguf"])
+    unet_node = "UnetLoaderGGUF" if unet_name.lower().endswith(".gguf") else "UNETLoader"
+
     ok = True
-    for node in ("UnetLoaderGGUF", "CLIPLoader", "VAELoader", "KSampler", "ModelSamplingAuraFlow"):
+    for node in (unet_node, "CLIPLoader", "VAELoader", "KSampler", "ModelSamplingAuraFlow"):
         present = client.has_node(node)
         ok &= present
         _log(f"{'[OK]' if present else '[NG]'} node {node}")
@@ -134,7 +137,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     clip_class = "CLIPLoaderGGUF" if cfg.models.get("text_encoder_is_gguf") else "CLIPLoader"
     checks = (
         # ラベル, 期待値, (ノード, 入力名), フォールバックで見る models/ のフォルダ
-        ("unet", cfg.models["unet_gguf"], ("UnetLoaderGGUF", "unet_name"),
+        ("unet", unet_name, (unet_node, "unet_name"),
          ("unet_gguf", "unet", "diffusion_models")),
         ("text_encoder", cfg.models["text_encoder"], (clip_class, "clip_name"),
          ("text_encoders", "clip", "clip_gguf")),
