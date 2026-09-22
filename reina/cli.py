@@ -75,6 +75,41 @@ def _preset(name: str) -> Path:
     return own if own.exists() else ROOT / f"presets/{name}.example.yaml"
 
 
+def _preset_arg(value: str) -> Path:
+    """--scenes / --axes の値を解決する。
+
+    パスをそのまま渡すほか、名前だけでも指定できる:
+        --scenes beach  ->  presets/beach.yaml があればそれ、
+                            無ければ presets/beach.example.yaml
+    """
+    path = Path(value)
+    if path.exists():
+        return path
+    if path.suffix in ("", ".yaml", ".yml") and path.parent == Path("."):
+        stem = path.stem
+        for candidate in (
+            ROOT / f"presets/{stem}.yaml",
+            ROOT / f"presets/{stem}.example.yaml",
+        ):
+            if candidate.exists():
+                return candidate
+    return path  # 存在チェックは _require_preset で行う
+
+
+def _require_preset(path: Path, kind: str) -> Path | None:
+    """見つからなければ、使える名前を並べて None を返す。"""
+    if path.exists():
+        return path
+    _log(f"{kind}定義が見つかりません: {path}")
+    available = sorted(
+        p.name.replace(".example.yaml", "").replace(".yaml", "")
+        for p in (ROOT / "presets").glob("*.yaml")
+    )
+    if available:
+        _log(f"     presets/ にあるもの: {', '.join(dict.fromkeys(available))}")
+    return None
+
+
 def _resolve_character(args: argparse.Namespace) -> Character:
     if args.character:
         return load_character(args.character)
@@ -331,7 +366,12 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
 def cmd_batch(args: argparse.Namespace) -> int:
     character = _resolve_character(args)
-    scenes_path = args.scenes or _preset("scenes")
+    scenes_path = _require_preset(
+        _preset_arg(args.scenes) if args.scenes else _preset("scenes"), "シーン"
+    )
+    if scenes_path is None:
+        return 1
+    _log(f"シーン定義: {scenes_path}")
     scenes = load_scenes(scenes_path)
     if args.only:
         wanted = set(args.only)
@@ -346,7 +386,12 @@ def cmd_batch(args: argparse.Namespace) -> int:
 
 def cmd_mix(args: argparse.Namespace) -> int:
     character = _resolve_character(args)
-    axes_path = args.axes or _preset("axes")
+    axes_path = _require_preset(
+        _preset_arg(args.axes) if args.axes else _preset("axes"), "軸"
+    )
+    if axes_path is None:
+        return 1
+    _log(f"軸定義: {axes_path}")
     axes = load_axes(axes_path)
     scenes = list(combine_axes(axes, limit=args.limit, seed=args.mix_seed))
     if not scenes:
@@ -407,14 +452,20 @@ def build_parser() -> argparse.ArgumentParser:
     gen.set_defaults(func=cmd_generate)
 
     batch = sub.add_parser("batch", help="presets/scenes.yaml を一括生成")
-    batch.add_argument("--scenes", help="シーン定義 YAML")
+    batch.add_argument(
+        "--scenes",
+        help="シーン定義 YAML。パス、または presets/ 内の名前（例: beach）",
+    )
     batch.add_argument("--only", nargs="+", help="指定した scene id のみ")
     batch.add_argument("--limit", type=int, help="先頭 N シーンのみ")
     _add_common(batch)
     batch.set_defaults(func=cmd_batch)
 
     mix = sub.add_parser("mix", help="presets/axes.yaml の組み合わせで大量バリエーション生成")
-    mix.add_argument("--axes", help="軸定義 YAML")
+    mix.add_argument(
+        "--axes",
+        help="軸定義 YAML。パス、または presets/ 内の名前（例: beach）",
+    )
     mix.add_argument("--limit", type=int, default=12, help="生成する組み合わせ数")
     mix.add_argument("--mix-seed", type=int, help="組み合わせシャッフルのシード")
     _add_common(mix)

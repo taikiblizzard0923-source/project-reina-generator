@@ -8,7 +8,9 @@
     gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
+    batch(ref="input/me.jpg", scenes="beach")        # presets/beach.yaml を使う
     mix(ref="input/me.jpg", limit=12)                # presets/axes.yaml の組み合わせ
+    mix(ref="input/me.jpg", axes="beach")            # 別の軸定義を使う
     show(4)                                          # 直近4枚を表示し直す
     bench()                                          # 速度を測る（設定比較用）
 """
@@ -117,9 +119,21 @@ def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str =
     return _run(args, n)
 
 
-def batch(ref: str | list[str] | None = None, only: list[str] | None = None, n: int = 1, **opts) -> bool:
-    """presets/scenes.yaml のシーンをまとめて生成して表示する。"""
+def batch(
+    ref: str | list[str] | None = None,
+    only: list[str] | None = None,
+    n: int = 1,
+    scenes: str | None = None,
+    **opts,
+) -> bool:
+    """シーン定義をまとめて生成して表示する。
+
+    scenes を省略すると presets/scenes.yaml（無ければ scenes.example.yaml）。
+    パスでも presets/ 内の名前でも指定できる:  batch(scenes="beach")
+    """
     args = ["batch", "--repeat", str(n)]
+    if scenes:
+        args += ["--scenes", scenes]
     args += _reference_args(ref)
     if opts.pop("keep_pose", False):
         args.append("--keep-pose")
@@ -136,13 +150,18 @@ def mix(
     limit: int = 12,
     n: int = 1,
     mix_seed: int | None = None,
+    axes: str | None = None,
     **opts,
 ) -> bool:
-    """presets/axes.yaml の軸（服装×場所×光×構図）を掛け合わせて生成する。
+    """軸（服装×場所×光×構図×髪型×顔の向き）を掛け合わせて生成する。
 
     シーンを1つずつ書くより、当たりの組み合わせを広く探すのに向く。
+    axes を省略すると presets/axes.yaml（無ければ axes.example.yaml）。
+    パスでも presets/ 内の名前でも指定できる:  mix(axes="beach")
     """
     args = ["mix", "--limit", str(limit), "--repeat", str(n)]
+    if axes:
+        args += ["--axes", axes]
     args += _reference_args(ref)
     if mix_seed is not None:
         args += ["--mix-seed", str(mix_seed)]

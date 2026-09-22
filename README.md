@@ -178,12 +178,20 @@ python -m reina batch -r input/me_front.jpg --only cafe_window city_night
 python -m reina batch -r input/me_front.jpg --repeat 4    # 1シーン4枚ずつ
 ```
 
+シーン定義は差し替えられます。`presets/beach.yaml` を作れば名前だけで指定できます：
+
+```bash
+python -m reina batch --scenes beach -r input/me_front.jpg   # presets/beach.yaml
+python -m reina batch --scenes /path/to/other.yaml -r input/me_front.jpg
+```
+
 ### 3-3. 大量バリエーション（組み合わせ生成）
 
 `presets/axes.yaml` の「服装 × 場所 × 光 × 構図」をシャッフルして掛け合わせます。
 
 ```bash
 python -m reina mix -r input/me_front.jpg --limit 30
+python -m reina mix --axes beach -r input/me_front.jpg       # presets/beach.yaml
 ```
 
 ### 3-4. 参照なし（テキストのみ）
