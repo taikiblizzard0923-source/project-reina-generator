@@ -17,7 +17,8 @@ GGUF_REPO="${GGUF_REPO:-vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF,AlperKTS/Qwen-
 # テキストエンコーダ / VAE は Comfy-Org の公式リパック（2.1 は Qwen3-VL 8B 系）
 TE_REPO="${TE_REPO:-Comfy-Org/Qwen-Image-2.1}"
 VAE_REPO="${VAE_REPO:-Comfy-Org/Qwen-Image-2.1}"
-# int8 は約9GB、bf16 は約17.5GB。TE_VARIANT=bf16 で切り替え
+# テキストエンコーダは int8 が約9GB、bf16 が約17.5GB。
+# 拡散モデルと違い1回しか通らないので、速度差は小さい。
 TE_VARIANT="${TE_VARIANT:-int8}"
 
 # 拡散モデルの形式:
@@ -27,7 +28,11 @@ TE_VARIANT="${TE_VARIANT:-int8}"
 #                 "Unknown model architecture" で失敗する
 MODEL_FORMAT="${MODEL_FORMAT:-safetensors}"
 DIT_REPO="${DIT_REPO:-Comfy-Org/Qwen-Image-2.1}"
-DIT_VARIANT="${DIT_VARIANT:-int8}"
+# bf16(約14GB) と int8(約7GB)。VRAM 24GB 以上なら bf16 を推奨。
+# int8_convrot は Ada/Hopper 向けの最適化で、Ampere(A40) では実測で
+# bf16 の 2.4 倍遅かった（4.4 秒/ステップ vs 1.81 秒/ステップ）。
+# VRAM が足りない場合だけ DIT_VARIANT=int8 にする。
+DIT_VARIANT="${DIT_VARIANT:-bf16}"
 
 # ダウンロードには hf CLI を使う（ファイル名の解決は標準ライブラリのみで行う）
 if ! command -v hf >/dev/null 2>&1; then

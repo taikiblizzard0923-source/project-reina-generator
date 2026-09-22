@@ -223,10 +223,24 @@ loras:
 | `steps` | 20 | 品質重視なら 28〜35 |
 | `cfg` | 2.5 | Qwen-Image 系は低め。上げすぎると肌が硬くなる |
 | `shift` | 3.1 | `ModelSamplingAuraFlow`。2.5〜4.0 で構図の印象が変わる |
+| モデル形式 | bf16 | VRAM 24GB 以上なら bf16。下表参照 |
 | `denoise` | 1.0 | 参照画像モードで下げると参照に忠実 |
 | 解像度 | 1024x1536 | 縦ポートレート。横なら 1536x1024 |
 
 すべて CLI から上書きできます：`--steps 30 --cfg 3.0 --width 1152 --height 1536`
+
+### 拡散モデルの形式と速度
+
+A40（Ampere / VRAM 48GB）での実測値：
+
+| 形式 | サイズ | 秒/ステップ | 備考 |
+|---|---|---|---|
+| `qwen_image_2.1_bf16` | 約14GB | **1.81** | VRAM 24GB 以上ならこちら |
+| `qwen_image_2.1_int8_convrot` | 約7GB | 4.4 | VRAM が足りない場合のみ |
+| GGUF (第三者量子化) | 約4GB | — | ComfyUI-GGUF が 2.1 未対応（2026-09 時点） |
+
+`int8_convrot` は Ada / Hopper 世代向けの最適化で、**Ampere では逆に遅くなります**。
+切り替えは `DIT_VARIANT=int8 bash go.sh official` と `config.yaml` の `unet_gguf` の書き換えで行えます。
 
 ---
 
