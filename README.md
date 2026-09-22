@@ -169,6 +169,25 @@ python -m reina generate "sitting in a cafe by the window, beige knit cardigan" 
   -r input/me_front.jpg -r input/me_side.jpg -r input/me_full.jpg
 ```
 
+### 参照画像の枚数が足りないとき
+
+エンコーダが受け付ける枚数は版によって違います（Qwen-Image 2.1 の編集
+エンコーダは3枚）。確認：
+
+```bash
+python -m reina refs
+```
+
+足りない場合は、顔・横顔・全身を1枚に並べて1枠で渡せます：
+
+```bash
+python scripts/collage.py input/ref_collage.png \
+  input/face.png input/side.png input/body.png
+python -m reina generate "..." -r input/ref_collage.png -s input/room.png
+```
+
+`--rows 2` で2段、`--height` で1枚あたりの高さを指定できます。
+
 ### 写り込ませたいものを渡す
 
 部屋やペットなど「その見た目のまま画面に入れたいもの」は `-s` で渡します。

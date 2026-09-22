@@ -16,6 +16,12 @@
     mix(ref="input/me.jpg", axes="beach")            # 別の軸定義を使う
     show(4)                                          # 直近4枚を表示し直す
     bench()                                          # 速度を測る（設定比較用）
+    ref_limit()                                      # 参照画像の上限を確認
+
+    # 参照画像が3枚までのとき、顔・横顔・全身を1枚にまとめる
+    c = collage(["input/face.png", "input/side.png", "input/body.png"])
+    gen("at home with her dog", ref=c,
+        scene_ref=["input/room.png", "input/pet.png=her golden retriever"])
 """
 
 from __future__ import annotations
@@ -105,6 +111,30 @@ def _run(args: list[str], expect: int) -> bool:
         # 保存行を拾えなかったときの保険
         show(expect)
     return True
+
+
+def collage(
+    sources: list[str],
+    out: str = "input/ref_collage.png",
+    rows: int = 1,
+    height: int = 768,
+) -> str:
+    """複数の参照画像を1枚にまとめ、表示して保存先を返す。
+
+    参照画像の枚数に上限がある（3枚など）とき、顔・横顔・全身を1枚にすれば
+    1枠で渡せる。戻り値をそのまま ref= に渡せる。
+    """
+    scripts = os.path.join(ROOT, "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    from collage import collage as _collage  # noqa: PLC0415
+
+    paths = [p if os.path.isabs(p) else os.path.join(ROOT, p) for p in sources]
+    target = out if os.path.isabs(out) else os.path.join(ROOT, out)
+    made = _collage(target, paths, rows=rows, height=height)
+    print(f"{os.path.relpath(made, ROOT)} を作りました（{len(sources)}枚）")
+    _display([str(made)])
+    return os.path.relpath(made, ROOT)
 
 
 def ref_limit(node: str | None = None) -> int:
