@@ -58,6 +58,16 @@ fetch() {
   repo="${found%%$'\t'*}"
   path="${found#*$'\t'}"
   echo "    -> $repo / $path"
+
+  # 平した後のファイルが既にあれば再取得しない
+  # （hf download は --local-dir 配下に repo のパス構造で書くため、
+  #   そのままだと毎回まるごと落とし直してしまう）
+  local landed="$dest/$(basename "$path")"
+  if [ -z "${FORCE:-}" ] && [ -s "$landed" ]; then
+    echo "    既にあります（$(du -h "$landed" | cut -f1)）— スキップ。再取得するなら FORCE=1"
+    return 0
+  fi
+
   hf download "$repo" "$path" --local-dir "$dest"
 }
 
