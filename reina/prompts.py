@@ -19,9 +19,12 @@ class Character:
     # 「高精細で綺麗」に寄せる語は AI 感を強めるので、
     # あえて素人写真・フィルム・粗さの側に振っている
     style: str = (
-        "candid amateur photograph, snapshot aesthetic, shot on 35mm film, "
-        "Kodak Portra 400, natural film grain, true-to-life muted colors, "
-        "imperfect available lighting, not retouched"
+        # 構図が整いすぎているのも AI 感の一因なので、
+        # 「たまたま撮れた1枚」の側に振っている
+        "candid unposed snapshot, caught mid-movement, casually framed, "
+        "slightly off-center composition, slightly tilted horizon, "
+        "shot on 35mm film, Kodak Portra 400, natural film grain, "
+        "true-to-life muted colors, imperfect available lighting, not retouched"
     )
     quality: str = (
         "visible skin pores and fine skin texture, uneven skin tone, "
@@ -192,6 +195,9 @@ def build_prompt(
 
 
 DEFAULT_NEGATIVE = (
+    # 構図が整いすぎるのを抑える
+    "posed studio portrait, centered symmetrical composition, "
+    "professional headshot, stock photo, "
     # AI 生成っぽさの原因になる語を潰す
     "airbrushed, smooth plastic skin, waxy skin, poreless skin, "
     "beauty filter, heavy retouching, glamour shot, magazine cover, "

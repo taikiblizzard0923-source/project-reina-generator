@@ -263,8 +263,11 @@ python -m reina batch
    `natural film grain`。
 5. **ネガティブで潰す** — `airbrushed`, `smooth plastic skin`,
    `beauty filter`, `glamour shot`, `perfectly symmetrical face`。
-6. **スナップ写真として指示する** — `candid`, `unposed`, `snapshot`,
-   `shot on a phone`。構図が完璧すぎるのも AI 感の一因。
+6. **構図を崩す** — `candid`, `unposed`, `caught mid-movement`,
+   `casually framed`, `slightly off-center composition`,
+   `slightly tilted horizon`。整いすぎた構図も AI 感の一因なので、
+   ネガティブ側でも `posed studio portrait`,
+   `centered symmetrical composition`, `stock photo` を潰している。
 
 逆にスタジオ写真らしくしたい場合は、`presets/character.yaml` の
 `style` / `quality` を書き換えてください。

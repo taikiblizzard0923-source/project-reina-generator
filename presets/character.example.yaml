@@ -15,13 +15,14 @@ details: []
 
 # 写真としての質感の指定（人物の外見ではない）
 #
-# 「高精細」「完璧な照明」に寄せるほど AI 生成らしさが出るので、
-# 素人写真・フィルム・肌の粗さの側に振ってある。
+# 「高精細」「完璧な照明」「整った構図」に寄せるほど AI 生成らしさが出るので、
+# 素人写真・フィルム・肌の粗さ・崩れた構図の側に振ってある。
 # もっとスタジオ写真らしくしたい場合はここを書き換える。
 style: >-
-  candid amateur photograph, snapshot aesthetic, shot on 35mm film,
-  Kodak Portra 400, natural film grain, true-to-life muted colors,
-  imperfect available lighting, not retouched
+  candid unposed snapshot, caught mid-movement, casually framed,
+  slightly off-center composition, slightly tilted horizon,
+  shot on 35mm film, Kodak Portra 400, natural film grain,
+  true-to-life muted colors, imperfect available lighting, not retouched
 
 quality: >-
   visible skin pores and fine skin texture, uneven skin tone,
