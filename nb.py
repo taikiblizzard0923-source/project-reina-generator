@@ -107,19 +107,22 @@ def _run(args: list[str], expect: int) -> bool:
     return True
 
 
-def ref_limit(node: str = "TextEncodeQwenImageEditPlus") -> int:
-    """参照画像を何枚まで渡せるかを ComfyUI に聞く。"""
-    from reina.client import ComfyClient
-    from reina.config import load_config
+def ref_limit(node: str | None = None) -> int:
+    """参照画像を何枚まで渡せるかを ComfyUI に聞く。
 
-    cfg = load_config(os.path.join(ROOT, "config.yaml"))
-    client = ComfyClient(cfg.server_url, auth=cfg.auth, verify=cfg.verify_tls)
-    names = client.image_input_names(node)
-    if not names:
-        print(f"{node} が見つかりません。ComfyUI が起動しているか確認してください")
+    ノートブックの作業ディレクトリ次第で `import reina` が通らないことがあるので、
+    他の機能と同じく CLI をサブプロセスで呼ぶ。
+    """
+    args = ["refs"] + (["--node", node] if node else [])
+    cmd = f"cd {shlex.quote(ROOT)} && {shlex.join([sys.executable, '-m', 'reina', *args])}"
+    proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    print((proc.stderr or "").strip())
+    if proc.returncode != 0:
         return 0
-    print(f"{node} が受け付ける参照画像: {len(names)} 枚  ({', '.join(names)})")
-    return len(names)
+    try:
+        return int(proc.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return 0
 
 
 def _reference_args(

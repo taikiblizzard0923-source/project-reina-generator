@@ -392,6 +392,24 @@ def _run_jobs(
     return 1 if failures else 0
 
 
+def cmd_refs(args: argparse.Namespace) -> int:
+    """参照画像を何枚渡せるか（エンコーダの image 入力の数）を表示する。"""
+    cfg = load_config(args.config)
+    client = _make_client(cfg, args)
+    node = args.node or _pick_encoder(client, None)
+    try:
+        names = client.image_input_names(node)
+    except ComfyError as exc:
+        _log(f"[NG] {exc}")
+        return 1
+    if not names:
+        _log(f"[NG] {node} が見つかりません。ComfyUI が起動しているか確認してください")
+        return 1
+    _log(f"{node} が受け付ける参照画像: {len(names)} 枚  ({', '.join(names)})")
+    print(len(names))
+    return 0
+
+
 def cmd_generate(args: argparse.Namespace) -> int:
     character = _resolve_character(args)
     scenes = [Scene(id=args.name, prompt=args.prompt)]
@@ -486,6 +504,13 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--server", help="ComfyUI の URL（RunPod の Proxy URL など）")
     doctor.add_argument("--timeout", type=int, default=900)
     doctor.set_defaults(func=cmd_doctor)
+
+    refs = sub.add_parser("refs", help="参照画像を何枚渡せるか確認")
+    refs.add_argument("--config")
+    refs.add_argument("--server")
+    refs.add_argument("--node", help="エンコーダのノード名を明示指定")
+    refs.add_argument("--timeout", type=int, default=120)
+    refs.set_defaults(func=cmd_refs)
 
     gen = sub.add_parser("generate", help="プロンプト1件を生成")
     gen.add_argument("prompt", help="シーン説明（服装・場所・光・構図など）")
