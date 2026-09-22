@@ -246,6 +246,31 @@ python -m reina batch
 
 ---
 
+## 3-5. AI 生成っぽさを消す
+
+「綺麗に撮れた高精細な写真」を指示するほど、かえって AI らしさが出ます。
+既定値は逆方向（素人写真・フィルム・肌の粗さ）に振ってあります。
+
+効く順：
+
+1. **`cfg` を下げる** — 既定 2.0。高いほど彩度とコントラストが上がり、
+   いわゆる「AI 絵」の質感になる。1.5 まで下げると更に地味になる。
+2. **`style` から「高精細」系の語を外す** — `high detail`, `sharp focus`,
+   `8k`, `masterpiece` などは逆効果。
+3. **肌の不完全さを足す** — `visible skin pores`, `uneven skin tone`,
+   `small blemishes`, `flyaway hairs`。
+4. **フィルムを指定する** — `shot on 35mm film`, `Kodak Portra 400`,
+   `natural film grain`。
+5. **ネガティブで潰す** — `airbrushed`, `smooth plastic skin`,
+   `beauty filter`, `glamour shot`, `perfectly symmetrical face`。
+6. **スナップ写真として指示する** — `candid`, `unposed`, `snapshot`,
+   `shot on a phone`。構図が完璧すぎるのも AI 感の一因。
+
+逆にスタジオ写真らしくしたい場合は、`presets/character.yaml` の
+`style` / `quality` を書き換えてください。
+
+---
+
 ## 4. 同一性（顔が似ない）を上げる
 
 似ないときは、上から順に効きます。

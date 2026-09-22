@@ -30,7 +30,7 @@ DEFAULTS: dict[str, Any] = {
         "width": 1024,
         "height": 1536,
         "steps": 20,
-        "cfg": 2.5,
+        "cfg": 2.0,
         "shift": 3.1,
         "sampler": "euler",
         "scheduler": "simple",

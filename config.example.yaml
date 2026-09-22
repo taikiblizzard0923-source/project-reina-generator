@@ -41,7 +41,7 @@ defaults:
   width: 1024
   height: 1536
   steps: 20
-  cfg: 2.5
+  cfg: 2.0        # 高いほど彩度とコントラストが上がり AI 感が出る。1.5〜3.0 で調整
   shift: 3.1
   sampler: "euler"
   scheduler: "simple"

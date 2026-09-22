@@ -16,8 +16,18 @@ class Character:
     name: str = "subject"
     identity: str = ""
     details: list[str] = field(default_factory=list)
-    style: str = "photorealistic portrait photograph, natural skin texture, sharp focus"
-    quality: str = "high detail, realistic lighting, 85mm lens, shallow depth of field"
+    # 「高精細で綺麗」に寄せる語は AI 感を強めるので、
+    # あえて素人写真・フィルム・粗さの側に振っている
+    style: str = (
+        "candid amateur photograph, snapshot aesthetic, shot on 35mm film, "
+        "Kodak Portra 400, natural film grain, true-to-life muted colors, "
+        "imperfect available lighting, not retouched"
+    )
+    quality: str = (
+        "visible skin pores and fine skin texture, uneven skin tone, "
+        "small blemishes and freckles, flyaway hairs, natural catchlights, "
+        "slight lens softness, realistic depth of field"
+    )
     negative: str = ""
 
     def describe(self) -> str:
@@ -182,9 +192,16 @@ def build_prompt(
 
 
 DEFAULT_NEGATIVE = (
+    # AI 生成っぽさの原因になる語を潰す
+    "airbrushed, smooth plastic skin, waxy skin, poreless skin, "
+    "beauty filter, heavy retouching, glamour shot, magazine cover, "
+    "perfectly symmetrical face, flawless complexion, "
+    "oversaturated, HDR, overprocessed, excessive contrast, glowing skin, "
+    "cgi, 3d render, digital art, illustration, anime, doll, mannequin, "
+    # 破綻の抑制
     "lowres, blurry, out of focus, jpeg artifacts, worst quality, "
     "deformed hands, extra fingers, extra limbs, bad anatomy, "
-    "watermark, text, logo, signature, plastic skin, oversaturated, cgi, 3d render, doll"
+    "watermark, text, logo, signature"
 )
 
 
