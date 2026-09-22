@@ -14,8 +14,21 @@ COMFY="$WORKSPACE/ComfyUI"
 QUANT="${QUANT:-Q4_K_M}"
 
 if [ ! -d "$WORKSPACE" ]; then
-  echo "!! $WORKSPACE がありません。RunPod のネットワークボリューム/コンテナボリュームを確認してください。" >&2
+  echo "!! $WORKSPACE がありません。RunPod のボリューム設定を確認してください。" >&2
   exit 1
+fi
+
+# $WORKSPACE が / と同じデバイスなら永続ボリュームが無い＝Pod 停止で全部消える
+if [ "$(stat -c%d "$WORKSPACE" 2>/dev/null)" = "$(stat -c%d / 2>/dev/null)" ]; then
+  cat >&2 <<'WARN'
+
+  !! 警告: /workspace が永続ボリュームではありません（コンテナディスク上です）
+     このまま進めると、Pod を停止した時点でモデル約30GBが消えます。
+     RunPod の Pod 作成時に Volume Disk 60GB 以上 / マウントパス /workspace を
+     設定してください。
+
+WARN
+  sleep 5
 fi
 
 echo "==> 依存パッケージ"
@@ -60,8 +73,9 @@ pip install -q -r custom_nodes/ComfyUI-GGUF/requirements.txt
 mkdir -p models/unet models/text_encoders models/vae models/loras input output
 
 if [ "${SKIP_MODELS:-0}" != "1" ]; then
-  echo "==> モデル取得 (quant=$QUANT)"
-  QUANT="$QUANT" bash "$(dirname "$(readlink -f "$0")")/download_models.sh" "$COMFY"
+  echo "==> モデル取得 (format=${MODEL_FORMAT:-safetensors} quant=$QUANT)"
+  QUANT="$QUANT" MODEL_FORMAT="${MODEL_FORMAT:-safetensors}" \
+    bash "$(dirname "$(readlink -f "$0")")/download_models.sh" "$COMFY"
 else
   echo "==> SKIP_MODELS=1 のためモデル取得をスキップ"
 fi

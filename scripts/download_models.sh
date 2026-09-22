@@ -21,9 +21,11 @@ VAE_REPO="${VAE_REPO:-Comfy-Org/Qwen-Image-2.1}"
 TE_VARIANT="${TE_VARIANT:-int8}"
 
 # 拡散モデルの形式:
-#   gguf        … 量子化GGUF（VRAM 8-16GB 向け。ComfyUI-GGUF が対応している必要あり）
-#   safetensors … Comfy-Org 公式（VRAM 24GB 以上向け。互換性の問題が起きにくい）
-MODEL_FORMAT="${MODEL_FORMAT:-gguf}"
+#   safetensors … Comfy-Org 公式（既定）。ComfyUI v0.37.0 が本体で 2.1 に対応済み
+#   gguf        … 量子化GGUF（VRAM が足りない場合のみ）。2026-09 時点で
+#                 city96/ComfyUI-GGUF は qwen_image アーキテクチャ未対応のため
+#                 "Unknown model architecture" で失敗する
+MODEL_FORMAT="${MODEL_FORMAT:-safetensors}"
 DIT_REPO="${DIT_REPO:-Comfy-Org/Qwen-Image-2.1}"
 DIT_VARIANT="${DIT_VARIANT:-int8}"
 

@@ -1,5 +1,17 @@
 # 再開手順（スマホ・RunPod）
 
+## Pod を作り直した場合（/workspace が空）
+
+```python
+!cd /workspace && git clone -b claude/qwen-image-generation-f2k812 https://github.com/taikiblizzard0923-source/project-reina-generator.git && cd project-reina-generator && bash go.sh
+```
+
+ComfyUI + 公式 safetensors モデルまで一括で入る（20分前後）。
+Pod 作成時に **Volume Disk 60GB / マウントパス `/workspace`** を設定し忘れると
+停止時に全部消えるので注意（設定漏れがあればセットアップ中に警告が出る）。
+
+---
+
 ## 現在の状態
 
 | 項目 | 状態 |
