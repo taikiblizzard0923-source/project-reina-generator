@@ -18,6 +18,10 @@
     bench()                                          # 速度を測る（設定比較用）
     ref_limit()                                      # 参照画像の上限を確認
 
+    # シーン定義を渡して一括生成 → ZIP にまとめてダウンロード
+    pack(scenes="beach", ref=["input/face.png", "input/side.png", "input/body.png"])
+    zip_run()                                        # 直近の結果だけ ZIP 化
+
     # 参照画像が3枚までのとき、顔・横顔・全身を1枚にまとめる
     c = collage(["input/face.png", "input/side.png", "input/body.png"])
     gen("at home with her dog", ref=c,
@@ -37,6 +41,11 @@ from pathlib import Path
 # %run でも exec でも動くように __file__ 不在に備える
 # CLI が保存ごとに出す "  -> /path/to/image.png" の行
 SAVED_LINE = re.compile(r"->\s*(\S+\.png)\s*$")
+# CLI が最後に出す "完了: /path/to/output/20260922-..." の行
+DONE_LINE = re.compile(r"完了:\s*(\S+)")
+
+# 直近の実行の出力ディレクトリ（pack() が ZIP にする対象）
+LAST_RUN: str | None = None
 
 ROOT = (
     os.path.dirname(os.path.abspath(__file__))
@@ -98,10 +107,14 @@ def _run(args: list[str], expect: int) -> bool:
         pending += text
         while "\n" in pending:
             line, pending = pending.split("\n", 1)
-            match = SAVED_LINE.search(line.replace("\r", ""))
+            clean = line.replace("\r", "")
+            match = SAVED_LINE.search(clean)
             if match and os.path.exists(match.group(1)):
                 shown.append(match.group(1))
                 _display([match.group(1)])
+            done = DONE_LINE.search(clean)
+            if done and os.path.isdir(done.group(1)):
+                globals()["LAST_RUN"] = done.group(1)
 
     code = proc.wait()
     if code != 0:
@@ -135,6 +148,95 @@ def collage(
     print(f"{os.path.relpath(made, ROOT)} を作りました（{len(sources)}枚）")
     _display([str(made)])
     return os.path.relpath(made, ROOT)
+
+
+def zip_run(run_dir: str | None = None, out_dir: str | None = None) -> str:
+    """生成結果のフォルダを ZIP にまとめ、ダウンロード用リンクを出す。
+
+    run_dir を省略すると直近の実行の出力を使う。
+    画像・メタデータ JSON に加えて、プロンプト一覧の summary.txt を入れる。
+    """
+    import json
+    import zipfile
+
+    run_dir = run_dir or LAST_RUN
+    if not run_dir or not os.path.isdir(run_dir):
+        print("まとめる出力フォルダがありません。先に生成してください")
+        return ""
+
+    # /workspace があればそこに置く（JupyterLab から辿りやすい）
+    if out_dir is None:
+        out_dir = "/workspace/downloads" if os.path.isdir("/workspace") else os.path.join(ROOT, "downloads")
+    os.makedirs(out_dir, exist_ok=True)
+    name = os.path.basename(run_dir.rstrip("/"))
+    archive = os.path.join(out_dir, f"reina-{name}.zip")
+
+    files = sorted(glob.glob(os.path.join(run_dir, "*")))
+    images = [f for f in files if f.endswith(".png")]
+
+    # どの画像がどのプロンプトか、1ファイルで分かるようにしておく
+    lines = [f"生成: {name}", f"画像: {len(images)}枚", ""]
+    for meta_path in sorted(glob.glob(os.path.join(run_dir, "*.json"))):
+        try:
+            meta = json.loads(Path(meta_path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        params = meta.get("params", {})
+        lines += [
+            f"[{os.path.basename(meta_path)[:-5]}]",
+            f"  scene : {meta.get('scene')}",
+            f"  seed  : {params.get('seed')}",
+            f"  size  : {params.get('width')}x{params.get('height')}"
+            f"  steps={params.get('steps')} cfg={params.get('cfg')}",
+            f"  prompt: {meta.get('prompt', '')}",
+            "",
+        ]
+
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in files:
+            zf.write(path, os.path.join(name, os.path.basename(path)))
+        zf.writestr(os.path.join(name, "summary.txt"), "\n".join(lines))
+
+    size = os.path.getsize(archive) / 1e6
+    print(f"{archive}  ({len(images)}枚 / {size:.1f}MB)")
+    _download_link(archive)
+    return archive
+
+
+def _download_link(path: str) -> None:
+    """JupyterLab から辿れるならリンクを出す。無理ならパスだけ案内する。"""
+    try:
+        from IPython.display import FileLink, display
+    except ImportError:
+        return
+    try:
+        relative = os.path.relpath(path, os.getcwd())
+    except ValueError:
+        relative = ""
+    if relative and not relative.startswith(".."):
+        display(FileLink(relative))
+    else:
+        print("左のファイルブラウザで開いてダウンロードしてください:")
+        print(f"  {os.path.dirname(path)}  ->  {os.path.basename(path)}")
+
+
+def pack(
+    scenes: str | None = None,
+    ref: str | list[str] | None = None,
+    scene_ref: str | list[str] | None = None,
+    n: int = 1,
+    only: list[str] | None = None,
+    **opts,
+) -> str:
+    """シーン定義を渡して一括生成し、結果を ZIP にまとめる。
+
+        pack(scenes="beach", ref=["input/face.png", "input/side.png"])
+    """
+    ok = batch(ref=ref, only=only, n=n, scenes=scenes, scene_ref=scene_ref, **opts)
+    if not ok:
+        print("生成に失敗したため ZIP は作りません")
+        return ""
+    return zip_run()
 
 
 def ref_limit(node: str | None = None) -> int:
@@ -286,5 +388,5 @@ print(
     '  gen("プロンプト", ref="input/me.jpg")'
     '  /  batch(ref="input/me.jpg")'
     '  /  mix(ref="input/me.jpg", limit=12)'
-    '  /  show(4)  /  bench()  /  ref_limit()'
+    '  /  pack(scenes="beach", ref=...)  /  show(4)  /  bench()  /  ref_limit()'
 )

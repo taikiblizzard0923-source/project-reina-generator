@@ -1,0 +1,9 @@
+scenes:
+  - id: beach_full
+    prompt: "standing on a sandy beach, ocean waves behind her, golden hour"
+    width: 832
+    height: 1216
+  - id: beach_walk
+    prompt: "walking along the shoreline, wind in her hair"
+    width: 832
+    height: 1216
