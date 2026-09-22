@@ -102,42 +102,83 @@ def build_prompt(
     scene: Scene,
     reference_mode: bool = False,
     keep_pose: bool = False,
+    identity_count: int = 0,
+    scene_labels: list[str] | None = None,
 ) -> str:
     """参照画像モードの指示文を組み立てる。
 
     参照画像エンコーダは画像編集用なので、素直に書くと顔だけでなく
-    ポーズ・カメラアングル・構図まで参照画像のまま引き継ぎ、
-    服と背景だけが変わった絵になる。
-    keep_pose=False ではそれを明示的に禁止して、新しい写真を作らせる。
-    """
-    if reference_mode:
-        subject = character.describe()
-        features = f" Distinguishing features: {subject}." if subject else ""
-        tail = ", ".join(p for p in (character.style, character.quality) if p)
-        if keep_pose:
-            head = (
-                "Keep the exact same person, same face, same identity, "
-                "same pose and same framing as the reference image."
-            )
-            return f"{head}{features} Change the scene to: {scene.prompt}. {tail}"
-        head = (
-            "Use the reference image only as the identity of the person: "
-            "the same facial features, so that the person is recognisable as the same individual. "
-            "Do not copy anything else from the reference image — "
-            "not the pose, the head angle, the direction the person is facing, the gaze, "
-            "the camera angle, the framing, the crop, the expression, "
-            "the hairstyle, the hair length, the makeup, "
-            "the clothing or the background."
-        )
-        body = (
-            "Take a completely new photograph of this person, with a different pose, "
-            "a different head angle and a different hairstyle: "
-            f"{scene.prompt}."
-        )
-        return f"{head}{features} {body} {tail}"
+    ポーズ・髪型・構図まで参照画像のまま引き継ぎ、
+    服と背景だけが変わった絵になる。keep_pose=False ではそれを明示的に禁止する。
 
-    parts = [character.style, character.describe(), scene.prompt, character.quality]
-    return ", ".join(p.strip().rstrip(",") for p in parts if p and p.strip())
+    identity_count 枚目までが人物、その後が「写り込ませたいもの」
+    （部屋・ペットなど）。後者は逆に見た目を引き継がせたいので、
+    「コピーするな」の対象から外す必要がある。
+    """
+    if not reference_mode:
+        parts = [character.style, character.describe(), scene.prompt, character.quality]
+        return ", ".join(p.strip().rstrip(",") for p in parts if p and p.strip())
+
+    scene_labels = scene_labels or []
+    identity_count = max(identity_count, 0)
+    sentences: list[str] = []
+
+    # どの画像が何なのか
+    if identity_count > 1:
+        person_ref = f"Images 1 to {identity_count}"
+        sentences.append(f"{person_ref} show the same person from different angles.")
+    elif identity_count == 1:
+        person_ref = "Image 1"
+        sentences.append("Image 1 shows the person.")
+    else:
+        person_ref = "The reference image"
+    for offset, label in enumerate(scene_labels, start=max(identity_count, 1) + 1):
+        sentences.append(f"Image {offset} shows {label}.")
+
+    if keep_pose:
+        sentences.append(
+            f"Keep the person exactly as in {person_ref.lower()}: "
+            "same face, same identity, same pose and same framing."
+        )
+    else:
+        sentences.append(
+            f"Use {person_ref.lower()} only for the identity of the person: "
+            "the same facial features, so that the person is recognisable "
+            "as the same individual."
+        )
+        sentences.append(
+            f"Do not copy anything else from {person_ref.lower()} — "
+            "not the pose, the head angle, the direction the person is facing, "
+            "the gaze, the camera angle, the framing, the crop, the expression, "
+            "the hairstyle, the hair length, the makeup, the clothing "
+            "or the background."
+        )
+
+    subject = character.describe()
+    if subject:
+        sentences.append(f"Distinguishing features: {subject}.")
+
+    if scene_labels:
+        listed = (
+            " and ".join(scene_labels)
+            if len(scene_labels) < 3
+            else ", ".join(scene_labels[:-1]) + " and " + scene_labels[-1]
+        )
+        sentences.append(
+            f"Include {listed} in the photograph, "
+            "matching how they look in their own reference images."
+        )
+
+    if keep_pose:
+        sentences.append(f"Change the scene to: {scene.prompt}.")
+    else:
+        sentences.append(
+            "Take a completely new photograph of this person, with a different pose, "
+            f"a different head angle and a different hairstyle: {scene.prompt}."
+        )
+
+    tail = ", ".join(p for p in (character.style, character.quality) if p)
+    return " ".join(sentences) + (f" {tail}" if tail else "")
 
 
 DEFAULT_NEGATIVE = (

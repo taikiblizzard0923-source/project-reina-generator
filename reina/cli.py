@@ -75,6 +75,26 @@ def _preset(name: str) -> Path:
     return own if own.exists() else ROOT / f"presets/{name}.example.yaml"
 
 
+def _scene_ref(value: str) -> tuple[str, str]:
+    """--scene-ref の値を (パス, 説明) に分解する。
+
+        input/room.jpg                  -> ("input/room.jpg", "the room")
+        input/pet.jpg=her golden retriever
+                                        -> ("input/pet.jpg", "her golden retriever")
+    説明を省いた場合はファイル名から作る（room.jpg なら "the room"）。
+    """
+    path, _, label = value.partition("=")
+    if not label:
+        stem = Path(path).stem.replace("_", " ").replace("-", " ").strip()
+        if not stem:
+            label = "the reference object"
+        elif stem.split(" ", 1)[0] in ("my", "her", "his", "their", "the", "a", "an"):
+            label = stem  # 既に限定詞が付いている
+        else:
+            label = f"the {stem}"
+    return path, label
+
+
 def _preset_arg(value: str) -> Path:
     """--scenes / --axes の値を解決する。
 
@@ -264,23 +284,33 @@ def _run_jobs(
     scenes: list[Scene],
     reference_paths: list[str],
 ) -> int:
+    scene_refs = [_scene_ref(v) for v in (getattr(args, "scene_ref", None) or [])]
     cfg = load_config(args.config)
     client = _make_client(cfg, args)
     builder = WorkflowBuilder(cfg.models, cfg.defaults, cfg.loras)
-    reference_mode = bool(reference_paths)
+
+    all_paths = list(reference_paths) + [p for p, _ in scene_refs]
+    reference_mode = bool(all_paths)
 
     uploaded: list[str] = []
     if reference_mode and not args.dry_run:
-        for path in reference_paths:
+        for path in all_paths:
             name = client.upload_image(path)
             uploaded.append(name)
             _log(f"参照画像をアップロード: {path} -> {name}")
     elif reference_mode:
-        uploaded = [Path(p).name for p in reference_paths]
+        uploaded = [Path(p).name for p in all_paths]
 
     encoder = _pick_encoder(client, args.encoder) if reference_mode and not args.dry_run else (
         args.encoder or EDIT_ENCODER_CANDIDATES[0]
     )
+
+    if reference_mode and not args.dry_run:
+        capacity = len(client.image_input_names(encoder))
+        if capacity and len(uploaded) > capacity:
+            _log(f"参照画像は {capacity} 枚までです（{encoder} の受け口の数）。"
+                 f"{len(uploaded)} 枚指定されています")
+            return 1
 
     out_dir = _out_dir(args)
     negative = build_negative(character, args.negative or "")
@@ -304,6 +334,8 @@ def _run_jobs(
                 character, scene,
                 reference_mode=reference_mode,
                 keep_pose=getattr(args, "keep_pose", False),
+                identity_count=len(reference_paths),
+                scene_labels=[label for _, label in scene_refs],
             )
             if reference_mode:
                 graph = builder.reference_to_image(
@@ -344,6 +376,8 @@ def _run_jobs(
                 "negative": negative,
                 "params": effective,
                 "reference_images": uploaded,
+                "identity_images": len(reference_paths),
+                "scene_references": [{"path": p, "label": l} for p, l in scene_refs],
                 "models": cfg.models,
                 "loras": cfg.loras,
             }
@@ -410,7 +444,15 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         help="ComfyUI の URL。例: https://<POD_ID>-8188.proxy.runpod.net（環境変数 REINA_COMFY_URL でも可）",
     )
     parser.add_argument("--character", help="キャラクター定義 YAML")
-    parser.add_argument("-r", "--reference", action="append", help="参照画像（最大3枚、複数指定可）")
+    parser.add_argument(
+        "-r", "--reference", action="append",
+        help="人物の参照画像（顔・横顔・全身など。複数指定可）",
+    )
+    parser.add_argument(
+        "-s", "--scene-ref", action="append", dest="scene_ref",
+        help="写り込ませたいものの参照画像。'path' または 'path=説明'"
+             "（例: input/pet.jpg=her golden retriever）。省略時はファイル名から説明を作る",
+    )
     parser.add_argument("-o", "--out", help="出力ディレクトリ（既定: output/）")
     parser.add_argument("--negative", help="ネガティブプロンプトに追記")
     parser.add_argument("--seed", type=int, help="固定シード（--repeat で +1 ずつ）")
@@ -476,9 +518,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if getattr(args, "reference", None) and len(args.reference) > 3:
-        _log("参照画像は最大3枚です")
-        return 1
     try:
         return args.func(args)
     except ComfyError as exc:

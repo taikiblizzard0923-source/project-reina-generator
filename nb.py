@@ -5,6 +5,9 @@
 
     gen("walking on a Tokyo street at night, black leather jacket")
     gen("sitting in a cafe", ref="input/me.jpg")     # 参照画像つき（顔だけ引き継ぎ）
+    gen("at home with my dog",                       # 人物3枚 + 写り込ませたいもの
+        ref=["input/face.jpg", "input/side.jpg", "input/body.jpg"],
+        scene_ref=["input/room.jpg", "input/pet.jpg=her golden retriever"])
     gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
@@ -98,20 +101,33 @@ def _run(args: list[str], expect: int) -> bool:
     return True
 
 
-def _reference_args(ref: str | list[str] | None) -> list[str]:
+def _reference_args(
+    ref: str | list[str] | None,
+    scene_ref: str | list[str] | None = None,
+) -> list[str]:
+    """ref = 人物の参照画像、scene_ref = 写り込ませたいもの（部屋・ペットなど）。"""
     args: list[str] = []
     for path in [ref] if isinstance(ref, str) else (ref or []):
         args += ["-r", path]
+    for item in [scene_ref] if isinstance(scene_ref, str) else (scene_ref or []):
+        args += ["-s", item]
     return args
 
 
-def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str = "shot", **opts) -> bool:
+def gen(
+    prompt: str,
+    ref: str | list[str] | None = None,
+    n: int = 1,
+    name: str = "shot",
+    scene_ref: str | list[str] | None = None,
+    **opts,
+) -> bool:
     """1つのプロンプトから n 枚生成して表示する。
 
     opts は CLI のオプションにそのまま渡る（steps=30, cfg=3.0, width=1024 ...）。
     """
     args = ["generate", prompt, "--name", name, "--repeat", str(n)]
-    args += _reference_args(ref)
+    args += _reference_args(ref, scene_ref)
     if opts.pop("keep_pose", False):
         args.append("--keep-pose")
     for key, value in opts.items():
@@ -124,6 +140,7 @@ def batch(
     only: list[str] | None = None,
     n: int = 1,
     scenes: str | None = None,
+    scene_ref: str | list[str] | None = None,
     **opts,
 ) -> bool:
     """シーン定義をまとめて生成して表示する。
@@ -134,7 +151,7 @@ def batch(
     args = ["batch", "--repeat", str(n)]
     if scenes:
         args += ["--scenes", scenes]
-    args += _reference_args(ref)
+    args += _reference_args(ref, scene_ref)
     if opts.pop("keep_pose", False):
         args.append("--keep-pose")
     if only:
@@ -151,6 +168,7 @@ def mix(
     n: int = 1,
     mix_seed: int | None = None,
     axes: str | None = None,
+    scene_ref: str | list[str] | None = None,
     **opts,
 ) -> bool:
     """軸（服装×場所×光×構図×髪型×顔の向き）を掛け合わせて生成する。
@@ -162,7 +180,7 @@ def mix(
     args = ["mix", "--limit", str(limit), "--repeat", str(n)]
     if axes:
         args += ["--axes", axes]
-    args += _reference_args(ref)
+    args += _reference_args(ref, scene_ref)
     if mix_seed is not None:
         args += ["--mix-seed", str(mix_seed)]
     if opts.pop("keep_pose", False):

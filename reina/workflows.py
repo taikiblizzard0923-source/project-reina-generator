@@ -151,15 +151,13 @@ class WorkflowBuilder:
         encoder_class: str = EDIT_ENCODER_CANDIDATES[0],
         **overrides: Any,
     ) -> Graph:
-        """参照画像（最大3枚）を条件に画像を生成する。
+        """参照画像を条件に画像を生成する。
 
         reference_images は ComfyUI の input/ 配下の名前
         (ComfyClient.upload_image の戻り値) を渡す。
         """
         if not reference_images:
             raise ValueError("参照画像が1枚以上必要です")
-        if len(reference_images) > 3:
-            raise ValueError("参照画像は最大3枚です")
 
         params = self._params(**overrides)
         params["denoise"] = float(overrides.get("denoise") or self.defaults.get("reference_denoise", 1.0))

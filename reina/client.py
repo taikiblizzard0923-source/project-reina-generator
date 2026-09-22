@@ -98,6 +98,17 @@ class ComfyClient:
             self._object_info_cache[node_class] = info
         return info
 
+    def image_input_names(self, node_class: str) -> list[str]:
+        """ノードが受け付ける image1, image2, ... の名前を順に返す。
+
+        受け付ける枚数はモデル世代やノードの版で変わるので、決め打ちしない。
+        """
+        spec = self.object_info(node_class).get(node_class, {}).get("input", {})
+        names: list[str] = []
+        for section in ("required", "optional"):
+            names += [n for n in spec.get(section, {}) if n.startswith("image")]
+        return sorted(names, key=lambda n: int(n[5:]) if n[5:].isdigit() else 0)
+
     def fill_missing_inputs(self, graph: dict[str, Any]) -> list[str]:
         """未設定の必須入力を、ComfyUI が持つ既定値で埋める。
 

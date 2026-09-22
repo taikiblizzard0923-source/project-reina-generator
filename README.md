@@ -156,7 +156,8 @@ python -m reina batch -r input/me_front.jpg
 
 ### 3-1. 参照画像から生成する（メイン用途）
 
-自分の写真を `input/` に置いて `-r` で渡します（最大3枚。正面・横顔・全身など角度違いを入れると同一性が安定します）。
+自分の写真を `input/` に置いて `-r` で渡します（正面・横顔・全身など角度違いを入れると同一性が安定します）。
+受け付ける枚数はモデルとノードの版によるので、多すぎる場合は実行時に上限を知らせます。
 
 ```bash
 # 1枚だけ試す
@@ -167,6 +168,26 @@ python -m reina generate "walking on a Tokyo street at night, black leather jack
 python -m reina generate "sitting in a cafe by the window, beige knit cardigan" \
   -r input/me_front.jpg -r input/me_side.jpg -r input/me_full.jpg
 ```
+
+### 写り込ませたいものを渡す
+
+部屋やペットなど「その見た目のまま画面に入れたいもの」は `-s` で渡します。
+`-r` が同一性（コピーしてほしくないもの）なのに対し、`-s` は見た目を再現させる対象です。
+
+```bash
+python -m reina generate "relaxing at home in the afternoon" \
+  -r input/face.jpg -r input/side.jpg -r input/body.jpg \
+  -s input/room.jpg \
+  -s "input/pet.jpg=her golden retriever"
+```
+
+説明はファイル名から作られます（`room.jpg` → `the room`）。
+`パス=説明` の形で明示もできます。生成される指示文は次のようになります：
+
+> Images 1 to 3 show the same person from different angles. Image 4 shows the room.
+> Image 5 shows her golden retriever. Use images 1 to 3 only for the identity of the
+> person ... Do not copy anything else from images 1 to 3 ... Include the room and her
+> golden retriever in the photograph, matching how they look in their own reference images.
 
 ### 3-2. シーンを一括生成
 
