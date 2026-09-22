@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>reina generator</title>
+<style>
+  :root {
+    --bg: #faf9f7; --card: #fff; --fg: #1c1b19; --muted: #6b6862;
+    --line: #e3e0da; --accent: #b4541f; --accent-fg: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#171614; --card:#201e1b; --fg:#ece9e3; --muted:#9a958c;
+            --line:#332f2a; --accent:#d9743f; --accent-fg:#171614; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg);
+         font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:14px; margin-bottom:14px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input, select, textarea { width:100%; padding:10px; font-size:16px; color:var(--fg);
+          background:var(--bg); border:1px solid var(--line); border-radius:8px; font-family:inherit; }
+  textarea { min-height:72px; resize:vertical; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; min-width:0; }
+  button { width:100%; padding:14px; font-size:16px; font-weight:600; border:0;
+           border-radius:10px; background:var(--accent); color:var(--accent-fg); }
+  button:disabled { opacity:.45; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .imgs { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .imgs label { display:flex; align-items:center; gap:6px; margin:0; padding:7px 10px;
+          border:1px solid var(--line); border-radius:8px; font-size:13px; color:var(--fg); }
+  .imgs input { width:auto; }
+  #log { white-space:pre-wrap; font:12px/1.5 ui-monospace,monospace; color:var(--muted);
+         max-height:140px; overflow:auto; margin-top:10px; }
+  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:10px; }
+  .bar div { height:100%; width:0; background:var(--accent); transition:width .25s; }
+  .shot { margin-top:12px; }
+  .shot img { width:100%; border-radius:10px; display:block; }
+  .shot a { display:inline-block; margin-top:6px; font-size:13px; color:var(--accent); }
+  .err { color:#c0392b; font-size:13px; }
+</style>
+</head>
+<body>
+
+<h1>reina generator</h1>
+<div class="sub">生成からダウンロードまで、この画面だけで完結します</div>
+
+<div class="card">
+  <label for="scenes">シーン定義（presets/*.yaml）</label>
+  <select id="scenes"></select>
+
+  <label for="prompt">またはプロンプトを直接入力（入力するとシーン定義より優先）</label>
+  <textarea id="prompt" placeholder="standing on a sandy beach, ocean waves behind her, overcast afternoon"></textarea>
+
+  <label>人物の参照画像</label>
+  <div class="imgs" id="refs"></div>
+
+  <label>写り込ませたいもの（部屋・ペットなど）</label>
+  <div class="imgs" id="scenerefs"></div>
+
+  <div class="row">
+    <div><label for="steps">ステップ</label><input id="steps" type="number" value="16" inputmode="numeric"></div>
+    <div><label for="cfg">cfg</label><input id="cfg" type="number" step="0.1" value="2.0" inputmode="decimal"></div>
+  </div>
+  <div class="row">
+    <div><label for="width">幅</label><input id="width" type="number" value="832" inputmode="numeric"></div>
+    <div><label for="height">高さ</label><input id="height" type="number" value="1216" inputmode="numeric"></div>
+    <div><label for="repeat">枚数</label><input id="repeat" type="number" value="1" inputmode="numeric"></div>
+  </div>
+
+  <div class="bar"><div id="bar"></div></div>
+  <div id="log"></div>
+</div>
+
+<button id="go">生成する</button>
+<div style="height:10px"></div>
+<button id="dl" class="ghost" disabled>ZIP をダウンロード</button>
+
+<div id="out"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let runId = null, timer = null;
+
+function checkboxes(target, images) {
+  target.innerHTML = images.length
+    ? images.map((p) => `<label><input type="checkbox" value="${p}">${p.replace('input/','')}</label>`).join('')
+    : '<span class="sub">input/ に画像がありません</span>';
+}
+
+function picked(target) {
+  return [...target.querySelectorAll('input:checked')].map((el) => el.value);
+}
+
+async function load() {
+  const r = await fetch('reina/options').then((r) => r.json());
+  $('scenes').innerHTML = r.presets.map((p) => `<option value="${p}">${p}</option>`).join('');
+  checkboxes($('refs'), r.images);
+  checkboxes($('scenerefs'), r.images);
+}
+
+async function poll() {
+  const s = await fetch('reina/status?id=' + runId).then((r) => r.json());
+  if (s.error) return;
+
+  const done = s.total ? (s.current - 1 + (s.steps ? s.step / s.steps : 0)) / s.total : 0;
+  $('bar').style.width = Math.max(0, Math.min(100, done * 100)) + '%';
+  $('log').textContent =
+    (s.total ? `${s.current}/${s.total} 枚目  ` : '') +
+    (s.steps ? `${s.step}/${s.steps} ステップ  ` : '') +
+    `${s.elapsed}s\n` + s.log.split('\n').slice(-6).join('\n');
+
+  const shown = $('out').childElementCount;
+  s.images.slice(shown).forEach((p) => {
+    const div = document.createElement('div');
+    div.className = 'shot';
+    div.innerHTML =
+      `<img src="reina/file?path=${encodeURIComponent(p)}">` +
+      `<a href="reina/file?download=1&path=${encodeURIComponent(p)}" download>この1枚を保存</a>`;
+    $('out').appendChild(div);
+  });
+
+  if (s.finished) {
+    clearInterval(timer);
+    $('go').disabled = false;
+    $('go').textContent = '生成する';
+    $('bar').style.width = '100%';
+    if (s.returncode === 0 && s.images.length) {
+      $('dl').disabled = false;
+    } else if (s.returncode !== 0) {
+      $('log').innerHTML += `<div class="err">失敗しました（終了コード ${s.returncode}）</div>`;
+    }
+  }
+}
+
+$('go').onclick = async () => {
+  $('go').disabled = true;
+  $('go').textContent = '生成中…';
+  $('dl').disabled = true;
+  $('out').innerHTML = '';
+  $('bar').style.width = '0';
+
+  const body = {
+    prompt: $('prompt').value.trim() || null,
+    scenes: $('scenes').value || null,
+    ref: picked($('refs')),
+    scene_ref: picked($('scenerefs')),
+    steps: $('steps').value, cfg: $('cfg').value,
+    width: $('width').value, height: $('height').value,
+    repeat: $('repeat').value,
+  };
+  const r = await fetch('reina/run', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+  }).then((r) => r.json());
+
+  runId = r.id;
+  timer = setInterval(poll, 1000);
+};
+
+$('dl').onclick = async () => {
+  $('dl').textContent = '準備中…';
+  const z = await fetch('reina/zip?id=' + runId).then((r) => r.json());
+  $('dl').textContent = 'ZIP をダウンロード';
+  if (z.error) { alert(z.error); return; }
+  location.href = 'reina/file?download=1&path=' + encodeURIComponent(z.path);
+};
+
+load();
+</script>
+</body>
+</html>

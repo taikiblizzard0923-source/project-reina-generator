@@ -8,6 +8,7 @@
 #   bash go.sh info <repo>  HF リポジトリの中身とサイズを見る（DL前の確認用）
 #   bash go.sh clean    中断した/誤って掴んだダウンロードを消す
 #   bash go.sh fixdeps  壊れた Python パッケージを検出して入れ直す
+#   bash go.sh webui    ブラウザだけで使える生成 UI を ComfyUI に組み込む
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
 #   bash go.sh ps       まだ動いているか確認
 #   bash go.sh start    ComfyUI を起動
@@ -60,6 +61,40 @@ case "${1:-setup}" in
     PY="$COMFY/venv/bin/python"
     [ -x "$PY" ] || PY="$(command -v python3)"
     "$PY" "$HERE/scripts/fix_deps.py" --requirements "$COMFY/requirements.txt" "${@:2}"
+    ;;
+
+  webui)
+    TARGET="$COMFY/custom_nodes/reina_webui"
+    rm -rf "$TARGET"
+    ln -s "$HERE/comfy_extension" "$TARGET"
+    echo "組み込みました: $TARGET -> $HERE/comfy_extension"
+
+    # UI は CLI をサブプロセスで呼ぶので、ComfyUI の venv に依存を入れておく
+    PY="$COMFY/venv/bin/python"
+    [ -x "$PY" ] || PY="$(command -v python3)"
+    "$PY" -m pip install -q -r "$HERE/requirements.txt" || true
+
+    echo "ComfyUI を再起動します"
+    pkill -f "main.py --listen" 2>/dev/null || true
+    sleep 2
+    bash "$HERE/scripts/runpod_start.sh" --daemon
+    sleep 3
+    id="${RUNPOD_POD_ID:-<POD_ID>}"
+    cat <<MSG
+
+======================================================================
+ ブラウザでこれを開いてください（スマホでも可）:
+
+   https://${id}-8188.proxy.runpod.net/reina
+
+ 起動まで1分ほどかかります。開けない場合:
+   bash go.sh log-comfy
+======================================================================
+MSG
+    ;;
+
+  log-comfy)
+    tail -n 40 /workspace/comfyui.log
     ;;
 
   info)
@@ -126,6 +161,6 @@ case "${1:-setup}" in
     ;;
 
   *)
-    sed -n '2,16p' "${BASH_SOURCE[0]}"
+    sed -n '2,17p' "${BASH_SOURCE[0]}"
     ;;
 esac
