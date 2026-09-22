@@ -49,15 +49,25 @@ def show(n: int = 1) -> list[str]:
 
 
 def _run(args: list[str], expect: int) -> None:
+    """CLI を実行し、進捗（ステップ・経過秒）をそのまま流しながら待つ。
+
+    行単位で読むと \r による進捗更新が改行まで出てこないので、
+    バイト列のまま少しずつ読んで書き出す。
+    """
     cmd = f"cd {shlex.quote(ROOT)} && {shlex.join([sys.executable, '-m', 'reina', *args])}"
-    proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    # 進捗と保存先は stderr に出る
-    tail = (proc.stderr or "").strip().splitlines()
-    print("\n".join(tail[-12:]))
-    if proc.returncode != 0:
-        print(f"[失敗] 終了コード {proc.returncode}")
-        if proc.stdout.strip():
-            print(proc.stdout[-2000:])
+    proc = subprocess.Popen(
+        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0
+    )
+    assert proc.stdout is not None
+    while True:
+        chunk = proc.stdout.read(128)
+        if not chunk:
+            break
+        sys.stdout.write(chunk.decode("utf-8", "replace"))
+        sys.stdout.flush()
+    code = proc.wait()
+    if code != 0:
+        print(f"\n[失敗] 終了コード {code}")
         return
     show(expect)
 

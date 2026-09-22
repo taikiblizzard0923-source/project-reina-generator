@@ -155,9 +155,7 @@ class ComfyClient:
         except ComfyError:
             raise
         except Exception as exc:  # noqa: BLE001 - WS が使えない環境向けフォールバック
-            if on_progress:
-                on_progress(0, 0)
-            self._wait_poll(prompt_id, note=str(exc))
+            self._wait_poll(prompt_id, note=str(exc), on_progress=on_progress)
 
     def _wait_ws(self, prompt_id: str, on_progress=None) -> None:
         ws = websocket.WebSocket()
@@ -190,9 +188,14 @@ class ComfyClient:
         finally:
             ws.close()
 
-    def _wait_poll(self, prompt_id: str, interval: float = 3.0, note: str = "") -> None:
+    def _wait_poll(
+        self, prompt_id: str, interval: float = 3.0, note: str = "", on_progress=None
+    ) -> None:
         deadline = time.time() + self.timeout
         while time.time() < deadline:
+            if on_progress:
+                # ステップ数は取れないので、経過時間だけ更新させる
+                on_progress(0, 0)
             hist = self.history(prompt_id)
             status = hist.get("status") or {}
             if status.get("completed") or hist.get("outputs"):

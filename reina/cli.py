@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,29 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def _log(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
+
+
+def _progress(prefix: str, started: float):
+    """KSampler のステップ進捗を1行で上書き表示する。"""
+    state = {"last": 0.0}
+
+    def report(value: int, maximum: int) -> None:
+        now = time.time()
+        # 端末が流れないよう更新は 0.2 秒に1回まで（最後の1回は必ず出す）
+        if maximum and value < maximum and now - state["last"] < 0.2:
+            return
+        state["last"] = now
+        elapsed = now - started
+        if maximum:
+            done = value / maximum
+            bar = "#" * int(done * 20) + "." * (20 - int(done * 20))
+            eta = f" 残り {elapsed / done - elapsed:4.0f}s" if done > 0.05 else ""
+            print(f"\r  {prefix} [{bar}] {value:>3}/{maximum}  {elapsed:5.1f}s{eta}",
+                  end="", file=sys.stderr, flush=True)
+        else:
+            print(f"\r  {prefix} 実行中  {elapsed:5.1f}s", end="", file=sys.stderr, flush=True)
+
+    return report
 
 
 def _make_client(cfg, args: argparse.Namespace) -> ComfyClient:
@@ -221,6 +245,7 @@ def _run_jobs(
     total = len(scenes) * args.repeat
     done = 0
     failures = 0
+    run_started = time.time()
 
     for scene in scenes:
         for take in range(args.repeat):
@@ -247,12 +272,16 @@ def _run_jobs(
                 continue
 
             _log(f"[{done}/{total}] {scene.id} seed={params['seed']}")
+            started = time.time()
             try:
-                images = client.run(graph)
+                images = client.run(graph, on_progress=_progress(scene.id, started))
             except ComfyError as exc:
                 failures += 1
-                _log(f"  [NG] {exc}")
+                print("", file=sys.stderr)
+                _log(f"  [NG] {time.time() - started:.1f}s で失敗: {exc}")
                 continue
+            print("", file=sys.stderr)  # 進捗行を閉じる
+            _log(f"  {time.time() - started:.1f}s で完了")
 
             # defaults とマージした実効値を残す（.json だけで再現できるように）
             effective = {**cfg.defaults, **params}
@@ -271,7 +300,9 @@ def _run_jobs(
                 _log(f"  -> {path}")
 
     if not args.dry_run:
-        _log(f"完了: {out_dir} (失敗 {failures}/{total})")
+        wall = time.time() - run_started
+        per = f" / 1枚あたり {wall / total:.1f}s" if total else ""
+        _log(f"完了: {out_dir} (失敗 {failures}/{total}) 合計 {wall:.1f}s{per}")
     return 1 if failures else 0
 
 
