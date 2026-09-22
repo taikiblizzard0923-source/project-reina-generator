@@ -8,6 +8,7 @@
     gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
+    mix(ref="input/me.jpg", limit=12)                # presets/axes.yaml の組み合わせ
     show(4)                                          # 直近4枚を表示し直す
 """
 
@@ -92,14 +93,20 @@ def _run(args: list[str], expect: int) -> None:
         show(expect)
 
 
+def _reference_args(ref: str | list[str] | None) -> list[str]:
+    args: list[str] = []
+    for path in [ref] if isinstance(ref, str) else (ref or []):
+        args += ["-r", path]
+    return args
+
+
 def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str = "shot", **opts) -> None:
     """1つのプロンプトから n 枚生成して表示する。
 
     opts は CLI のオプションにそのまま渡る（steps=30, cfg=3.0, width=1024 ...）。
     """
     args = ["generate", prompt, "--name", name, "--repeat", str(n)]
-    for path in [ref] if isinstance(ref, str) else (ref or []):
-        args += ["-r", path]
+    args += _reference_args(ref)
     if opts.pop("keep_pose", False):
         args.append("--keep-pose")
     for key, value in opts.items():
@@ -110,8 +117,7 @@ def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str =
 def batch(ref: str | list[str] | None = None, only: list[str] | None = None, n: int = 1, **opts) -> None:
     """presets/scenes.yaml のシーンをまとめて生成して表示する。"""
     args = ["batch", "--repeat", str(n)]
-    for path in [ref] if isinstance(ref, str) else (ref or []):
-        args += ["-r", path]
+    args += _reference_args(ref)
     if opts.pop("keep_pose", False):
         args.append("--keep-pose")
     if only:
@@ -122,4 +128,32 @@ def batch(ref: str | list[str] | None = None, only: list[str] | None = None, n: 
     _run(args, expect)
 
 
-print("準備できました。  gen(\"プロンプト\")  /  gen(\"...\", ref=\"input/me.jpg\")  /  batch(ref=\"input/me.jpg\")  /  show(4)")
+def mix(
+    ref: str | list[str] | None = None,
+    limit: int = 12,
+    n: int = 1,
+    mix_seed: int | None = None,
+    **opts,
+) -> None:
+    """presets/axes.yaml の軸（服装×場所×光×構図）を掛け合わせて生成する。
+
+    シーンを1つずつ書くより、当たりの組み合わせを広く探すのに向く。
+    """
+    args = ["mix", "--limit", str(limit), "--repeat", str(n)]
+    args += _reference_args(ref)
+    if mix_seed is not None:
+        args += ["--mix-seed", str(mix_seed)]
+    if opts.pop("keep_pose", False):
+        args.append("--keep-pose")
+    for key, value in opts.items():
+        args += [f"--{key.replace('_', '-')}", str(value)]
+    _run(args, limit * n)
+
+
+print(
+    "準備できました。"
+    '  gen("プロンプト", ref="input/me.jpg")'
+    '  /  batch(ref="input/me.jpg")'
+    '  /  mix(ref="input/me.jpg", limit=12)'
+    "  /  show(4)"
+)
