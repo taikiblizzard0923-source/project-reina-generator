@@ -95,6 +95,11 @@ def _scene_ref(value: str) -> tuple[str, str]:
     return path, label
 
 
+def _preset_name(path: Path) -> str:
+    """presets/beach.example.yaml -> beach（--scenes などに渡せる形）。"""
+    return Path(path).name.replace(".example.yaml", "").replace(".yaml", "")
+
+
 def _preset_arg(value: str) -> Path:
     """--scenes / --axes の値を解決する。
 
@@ -425,6 +430,12 @@ def cmd_batch(args: argparse.Namespace) -> int:
         return 1
     _log(f"シーン定義: {scenes_path}")
     scenes = load_scenes(scenes_path)
+    if not scenes:
+        _log(f"[NG] {scenes_path} に scenes: がありません")
+        if load_axes(scenes_path):
+            _log("     これは軸の定義（axes:）です。mix で使ってください:")
+            _log(f"     python -m reina mix --axes {_preset_name(scenes_path)}")
+        return 1
     if args.only:
         wanted = set(args.only)
         scenes = [s for s in scenes if s.id in wanted]
@@ -445,6 +456,10 @@ def cmd_mix(args: argparse.Namespace) -> int:
         return 1
     _log(f"軸定義: {axes_path}")
     axes = load_axes(axes_path)
+    if not axes and load_scenes(axes_path):
+        _log(f"[NG] {axes_path} は軸ではなくシーンの定義（scenes:）です。batch で使ってください:")
+        _log(f"     python -m reina batch --scenes {_preset_name(axes_path)}")
+        return 1
     scenes = list(combine_axes(axes, limit=args.limit, seed=args.mix_seed))
     if not scenes:
         _log(f"軸が空です: {axes_path}")

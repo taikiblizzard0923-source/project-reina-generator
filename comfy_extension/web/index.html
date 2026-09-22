@@ -50,10 +50,25 @@
 <div class="sub">生成からダウンロードまで、この画面だけで完結します</div>
 
 <div class="card">
-  <label for="scenes">シーン定義（presets/*.yaml）</label>
-  <select id="scenes"></select>
+  <label for="mode">作り方</label>
+  <select id="mode">
+    <option value="scenes">シーン定義から（scenes:）</option>
+    <option value="mix">軸の組み合わせから（axes:）</option>
+  </select>
 
-  <label for="prompt">またはプロンプトを直接入力（入力するとシーン定義より優先）</label>
+  <div id="scenesBox">
+    <label for="scenes">シーン定義</label>
+    <select id="scenes"></select>
+  </div>
+
+  <div id="mixBox" style="display:none">
+    <label for="axes">軸定義</label>
+    <select id="axes"></select>
+    <label for="limit">組み合わせ数</label>
+    <input id="limit" type="number" value="8" inputmode="numeric">
+  </div>
+
+  <label for="prompt">またはプロンプトを直接入力（入力すると上の指定より優先）</label>
   <textarea id="prompt" placeholder="standing on a sandy beach, ocean waves behind her, overcast afternoon"></textarea>
 
   <label>人物の参照画像</label>
@@ -113,12 +128,25 @@ function picked(target) {
   return [...target.querySelectorAll('input:checked')].map((el) => el.value);
 }
 
+function fill(select, names, empty) {
+  select.innerHTML = names.length
+    ? names.map((p) => `<option value="${p}">${p}</option>`).join('')
+    : `<option value="">${empty}</option>`;
+}
+
 async function load() {
   const r = await fetch('reina/options').then((r) => r.json());
-  $('scenes').innerHTML = r.presets.map((p) => `<option value="${p}">${p}</option>`).join('');
+  fill($('scenes'), r.presets, 'scenes: を持つファイルがありません');
+  fill($('axes'), r.axes, 'axes: を持つファイルがありません');
   checkboxes($('refs'), r.images);
   checkboxes($('scenerefs'), r.images);
 }
+
+$('mode').onchange = () => {
+  const mix = $('mode').value === 'mix';
+  $('scenesBox').style.display = mix ? 'none' : '';
+  $('mixBox').style.display = mix ? '' : 'none';
+};
 
 async function poll() {
   const s = await fetch('reina/status?id=' + runId).then((r) => r.json());
@@ -162,8 +190,11 @@ $('go').onclick = async () => {
   $('bar').style.width = '0';
 
   const body = {
+    mode: $('mode').value,
     prompt: $('prompt').value.trim() || null,
     scenes: $('scenes').value || null,
+    axes: $('axes').value || null,
+    limit: $('limit').value,
     ref: picked($('refs')),
     scene_ref: picked($('scenerefs')),
     steps: $('steps').value, cfg: $('cfg').value,

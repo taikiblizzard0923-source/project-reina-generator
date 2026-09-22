@@ -54,21 +54,41 @@ def _safe(path: str) -> Path | None:
 # -- 一覧 -------------------------------------------------------------------
 
 
+def _preset_kind(path: Path) -> str:
+    """scenes: を持つか axes: を持つかで種類を判定する。
+
+    取り違えると「0件で成功」になって何も生成されないので、
+    UI 側で選ばせる時点で分けておく。
+    """
+    try:
+        head = path.read_text(encoding="utf-8")
+    except OSError:
+        return "unknown"
+    if "\nscenes:" in f"\n{head}":
+        return "scenes"
+    if "\naxes:" in f"\n{head}":
+        return "axes"
+    return "unknown"
+
+
 @routes.get("/reina/options")
 async def options(request: web.Request) -> web.Response:
-    presets = sorted(
-        {
-            p.name.replace(".example.yaml", "").replace(".yaml", "")
-            for p in (REPO / "presets").glob("*.yaml")
-            if not p.name.startswith("character")
-        }
-    )
+    by_kind: dict[str, set[str]] = {"scenes": set(), "axes": set()}
+    for path in (REPO / "presets").glob("*.yaml"):
+        if path.name.startswith("character"):
+            continue
+        kind = _preset_kind(path)
+        if kind in by_kind:
+            by_kind[kind].add(path.name.replace(".example.yaml", "").replace(".yaml", ""))
+    presets = sorted(by_kind["scenes"])
     images = sorted(
         str(p.relative_to(REPO))
         for p in (REPO / "input").glob("*")
         if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
     )
-    return web.json_response({"presets": presets, "images": images})
+    return web.json_response(
+        {"presets": presets, "axes": sorted(by_kind["axes"]), "images": images}
+    )
 
 
 # -- 実行 -------------------------------------------------------------------
@@ -111,6 +131,10 @@ async def run(request: web.Request) -> web.Response:
     args = [_python(), "-m", "reina"]
     if body.get("prompt"):
         args += ["generate", body["prompt"], "--name", "web"]
+    elif body.get("mode") == "mix":
+        args += ["mix", "--limit", str(body.get("limit") or 12)]
+        if body.get("axes"):
+            args += ["--axes", body["axes"]]
     else:
         args += ["batch"]
         if body.get("scenes"):
