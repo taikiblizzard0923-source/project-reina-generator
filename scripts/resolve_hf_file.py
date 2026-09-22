@@ -11,10 +11,11 @@ usage: resolve_hf_file.py REPO[,REPO...] EXT [+REQUIRED | PREFER ...]
 
 from __future__ import annotations
 
+import os
 import sys
 
-from huggingface_hub import list_repo_files
-from huggingface_hub.utils import HfHubHTTPError, RepositoryNotFoundError
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from hf_api import HfError, repo_files  # noqa: E402
 
 
 def main() -> int:
@@ -31,11 +32,11 @@ def main() -> int:
     candidates: list[tuple[str, str]] = []
     for repo in repos:
         try:
-            files = list_repo_files(repo)
-        except (RepositoryNotFoundError, HfHubHTTPError) as exc:
-            print(f"  ! {repo}: {type(exc).__name__}", file=sys.stderr)
+            files = repo_files(repo)
+        except HfError as exc:
+            print(f"  ! {repo}: {exc}", file=sys.stderr)
             continue
-        candidates += [(repo, f) for f in files if f.lower().endswith(ext)]
+        candidates += [(repo, path) for path, _ in files if path.lower().endswith(ext)]
 
     if not candidates:
         print(f"{'/'.join(repos)} に {ext} が見つかりません", file=sys.stderr)
@@ -44,10 +45,7 @@ def main() -> int:
     if required:
         kept = [c for c in candidates if all(r in c[1].lower() for r in required)]
         if not kept:
-            print(
-                f"必須条件 {required} を満たす {ext} が {repos} にありません。",
-                file=sys.stderr,
-            )
+            print(f"必須条件 {required} を満たす {ext} が {repos} にありません。", file=sys.stderr)
             print("  実在した候補:", file=sys.stderr)
             for repo, path in sorted(candidates)[:40]:
                 print(f"     {repo}/{path}", file=sys.stderr)

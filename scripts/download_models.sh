@@ -29,8 +29,14 @@ MODEL_FORMAT="${MODEL_FORMAT:-safetensors}"
 DIT_REPO="${DIT_REPO:-Comfy-Org/Qwen-Image-2.1}"
 DIT_VARIANT="${DIT_VARIANT:-int8}"
 
-command -v hf >/dev/null 2>&1 || pip install -q -U "huggingface_hub[cli]"
-python3 -c "import huggingface_hub" 2>/dev/null || pip install -q -U huggingface_hub
+# ダウンロードには hf CLI を使う（ファイル名の解決は標準ライブラリのみで行う）
+if ! command -v hf >/dev/null 2>&1; then
+  pip install -q -U "huggingface_hub[cli]"
+fi
+if ! command -v hf >/dev/null 2>&1; then
+  echo "!! hf コマンドが見つかりません。pip install -U 'huggingface_hub[cli]' を試してください。" >&2
+  exit 1
+fi
 
 mkdir -p "$COMFY/models/unet" "$COMFY/models/text_encoders" "$COMFY/models/vae"
 
