@@ -97,15 +97,40 @@ def combine_axes(
     return _gen()
 
 
-def build_prompt(character: Character, scene: Scene, reference_mode: bool = False) -> str:
-    """参照画像モードでは「この人物を保ったまま〜」という編集指示文にする。"""
+def build_prompt(
+    character: Character,
+    scene: Scene,
+    reference_mode: bool = False,
+    keep_pose: bool = False,
+) -> str:
+    """参照画像モードの指示文を組み立てる。
+
+    参照画像エンコーダは画像編集用なので、素直に書くと顔だけでなく
+    ポーズ・カメラアングル・構図まで参照画像のまま引き継ぎ、
+    服と背景だけが変わった絵になる。
+    keep_pose=False ではそれを明示的に禁止して、新しい写真を作らせる。
+    """
     if reference_mode:
         subject = character.describe()
-        head = "Keep the exact same person, same face, same identity as the reference image."
-        body = f"Generate a new photo of her: {scene.prompt}."
+        features = f" Her distinguishing features: {subject}." if subject else ""
         tail = ", ".join(p for p in (character.style, character.quality) if p)
-        extra = f" Distinguishing features: {subject}." if subject else ""
-        return f"{head}{extra} {body} {tail}"
+        if keep_pose:
+            head = (
+                "Keep the exact same person, same face, same identity, "
+                "same pose and same framing as the reference image."
+            )
+            return f"{head}{features} Change the scene to: {scene.prompt}. {tail}"
+        head = (
+            "Use the reference image only as the identity of the person: "
+            "the same face and the same facial features. "
+            "Do not copy the pose, the camera angle, the framing, the crop, "
+            "the expression, the clothing or the background from the reference image."
+        )
+        body = (
+            "Take a completely new photograph of her, with a different pose "
+            f"and a different camera angle: {scene.prompt}."
+        )
+        return f"{head}{features} {body} {tail}"
 
     parts = [character.style, character.describe(), scene.prompt, character.quality]
     return ", ".join(p.strip().rstrip(",") for p in parts if p and p.strip())

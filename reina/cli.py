@@ -257,7 +257,11 @@ def _run_jobs(
             params.setdefault("seed", random_seed())
             params["prefix"] = f"{character.name}/{scene.id}"
 
-            prompt = build_prompt(character, scene, reference_mode=reference_mode)
+            prompt = build_prompt(
+                character, scene,
+                reference_mode=reference_mode,
+                keep_pose=getattr(args, "keep_pose", False),
+            )
             if reference_mode:
                 graph = builder.reference_to_image(
                     prompt, uploaded, negative=negative, encoder_class=encoder, **params
@@ -366,6 +370,12 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--batch-size", type=int, dest="batch_size")
     parser.add_argument("--encoder", help="参照画像エンコーダのノード名を明示指定")
     parser.add_argument("--timeout", type=int, default=900, help="1枚あたりの待機上限(秒)")
+    parser.add_argument(
+        "--keep-pose",
+        action="store_true",
+        dest="keep_pose",
+        help="参照画像のポーズ・構図も引き継ぐ（既定は顔だけ引き継ぎ、構図は自由）",
+    )
     parser.add_argument("--dry-run", action="store_true", help="送信せずワークフローJSONを表示")
 
 

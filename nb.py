@@ -4,7 +4,8 @@
     %run /workspace/project-reina-generator/nb.py
 
     gen("walking on a Tokyo street at night, black leather jacket")
-    gen("sitting in a cafe", ref="input/me.jpg")     # 参照画像つき
+    gen("sitting in a cafe", ref="input/me.jpg")     # 参照画像つき（顔だけ引き継ぎ）
+    gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
     show(4)                                          # 直近4枚を表示し直す
@@ -80,6 +81,8 @@ def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str =
     args = ["generate", prompt, "--name", name, "--repeat", str(n)]
     for path in [ref] if isinstance(ref, str) else (ref or []):
         args += ["-r", path]
+    if opts.pop("keep_pose", False):
+        args.append("--keep-pose")
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     _run(args, n)
@@ -90,6 +93,8 @@ def batch(ref: str | list[str] | None = None, only: list[str] | None = None, n: 
     args = ["batch", "--repeat", str(n)]
     for path in [ref] if isinstance(ref, str) else (ref or []):
         args += ["-r", path]
+    if opts.pop("keep_pose", False):
+        args.append("--keep-pose")
     if only:
         args += ["--only", *only]
     for key, value in opts.items():
