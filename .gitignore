@@ -4,11 +4,11 @@ downloads/
 !output/.gitkeep
 input/*
 !input/.gitkeep
-# presets/*.yaml は自分用の設定。*.example.yaml をコピーして使う
+# presets/ の *.yaml は自分用の設定。*.example.yaml をコピーして使う。
+# 名前は自由に付けられる（beach.yaml など）ので、example 以外は全部管理外にする。
 # （Git 管理下のまま編集すると git pull のたびに衝突するため）
-presets/character.yaml
-presets/scenes.yaml
-presets/axes.yaml
+presets/*.yaml
+!presets/*.example.yaml
 __pycache__/
 *.pyc
 .venv/
