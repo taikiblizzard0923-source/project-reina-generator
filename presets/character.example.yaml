@@ -1,23 +1,25 @@
-# 参照画像の人物の「動かしたくない特徴」を言葉でも固定しておくと同一性が上がる。
-# presets/character.yaml にコピーして自分用に書き換える（character.yaml は .gitignore 済み）。
+# 人物の見た目は参照画像から取るので、既定では何も指定しない。
+#
+# ここに髪型や顔の特徴を書くと、参照画像と食い違ったときに
+# 文章のほうが優先されて別人になることがある。
+# 参照画像だけでどうしても再現されない特徴がある場合にだけ、
+# details に最小限で足すこと。
 name: reina
 
-identity: >-
-  a 24-year-old Japanese woman
+# 例: "a woman in her twenties" など。空でよい
+identity: ""
 
-details:
-  - "long straight black hair with blunt bangs"
-  - "dark brown almond-shaped eyes"
-  - "slim build, fair skin"
-  - "small mole under the left eye"
-  - "natural light makeup"
+# 例: - "a small mole under the left eye"
+# 参照画像に写っているのに再現されない特徴だけを書く
+details: []
 
+# 写真としての質感の指定（人物の外見ではない）
 style: >-
-  photorealistic portrait photograph, shot on a full-frame DSLR,
+  photorealistic photograph, shot on a full-frame DSLR,
   natural skin texture with visible pores, true-to-life color
 
 quality: >-
-  85mm lens, shallow depth of field, soft natural lighting,
+  shallow depth of field, natural lighting,
   high detail, sharp focus on the eyes
 
 # 空にすると prompts.DEFAULT_NEGATIVE が使われる

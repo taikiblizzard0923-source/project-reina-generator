@@ -112,7 +112,7 @@ def build_prompt(
     """
     if reference_mode:
         subject = character.describe()
-        features = f" Her distinguishing features: {subject}." if subject else ""
+        features = f" Distinguishing features: {subject}." if subject else ""
         tail = ", ".join(p for p in (character.style, character.quality) if p)
         if keep_pose:
             head = (
@@ -127,7 +127,7 @@ def build_prompt(
             "the expression, the clothing or the background from the reference image."
         )
         body = (
-            "Take a completely new photograph of her, with a different pose "
+            "Take a completely new photograph of this person, with a different pose "
             f"and a different camera angle: {scene.prompt}."
         )
         return f"{head}{features} {body} {tail}"
