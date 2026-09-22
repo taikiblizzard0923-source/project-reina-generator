@@ -155,20 +155,33 @@ def bench(steps: int = 8, width: int = 832, height: int = 1216, ref=None, **opts
     """固定条件で1枚だけ生成して、1ステップあたりの秒数を出す。
 
     モデル（int8 / bf16）や解像度を変えたときの比較に使う。
-    条件を固定しないと比較にならないので、プロンプトとシードも固定してある。
+
+    シードは毎回変える。固定すると ComfyUI が前回の結果をキャッシュから返し、
+    1秒未満で「完了」してしまって計測にならない。
+    シードの値はサンプリングの計算量には影響しないので、比較は成立する。
     """
+    import random
     import time
 
     label = f"steps={steps} {width}x{height}" + (" 参照画像あり" if ref else " 参照画像なし")
     print(f"=== 計測: {label} ===")
     started = time.time()
     gen(
-        "a woman standing in a photo studio, plain grey background, soft light",
-        ref=ref, name="bench", seed=12345, steps=steps, width=width, height=height, **opts,
+        "a person standing in a photo studio, plain grey background, soft light",
+        ref=ref,
+        name="bench",
+        seed=random.randint(0, 2**31),
+        steps=steps,
+        width=width,
+        height=height,
+        **opts,
     )
     elapsed = time.time() - started
     print(f"\n=== 結果: 合計 {elapsed:.1f}s / {elapsed / steps:.2f} 秒/ステップ ===")
-    print("（モデルの初回読み込みを含むので、2回目の数字を採用すること）")
+    if elapsed < steps * 0.2:
+        print("!! 速すぎます。ComfyUI のキャッシュが返った可能性があります")
+    else:
+        print("（1回目はモデルの VRAM 読み込みを含むので、2回目の数字を採用すること）")
 
 
 print(
