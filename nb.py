@@ -26,6 +26,7 @@ import re
 import shlex
 import subprocess
 import sys
+from pathlib import Path
 
 # %run でも exec でも動くように __file__ 不在に備える
 # CLI が保存ごとに出す "  -> /path/to/image.png" の行
@@ -37,6 +38,11 @@ ROOT = (
     else "/workspace/project-reina-generator"
 )
 WIDTH = 420  # スマホで見やすい表示幅
+
+# ノートブックの作業ディレクトリはリポジトリ外のことが多い。
+# セルから `from reina.client import ...` できるようにしておく
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 
 def _display(paths: list[str]) -> None:
@@ -99,6 +105,21 @@ def _run(args: list[str], expect: int) -> bool:
         # 保存行を拾えなかったときの保険
         show(expect)
     return True
+
+
+def ref_limit(node: str = "TextEncodeQwenImageEditPlus") -> int:
+    """参照画像を何枚まで渡せるかを ComfyUI に聞く。"""
+    from reina.client import ComfyClient
+    from reina.config import load_config
+
+    cfg = load_config(os.path.join(ROOT, "config.yaml"))
+    client = ComfyClient(cfg.server_url, auth=cfg.auth, verify=cfg.verify_tls)
+    names = client.image_input_names(node)
+    if not names:
+        print(f"{node} が見つかりません。ComfyUI が起動しているか確認してください")
+        return 0
+    print(f"{node} が受け付ける参照画像: {len(names)} 枚  ({', '.join(names)})")
+    return len(names)
 
 
 def _reference_args(
@@ -232,5 +253,5 @@ print(
     '  gen("プロンプト", ref="input/me.jpg")'
     '  /  batch(ref="input/me.jpg")'
     '  /  mix(ref="input/me.jpg", limit=12)'
-    '  /  show(4)  /  bench()'
+    '  /  show(4)  /  bench()  /  ref_limit()'
 )
