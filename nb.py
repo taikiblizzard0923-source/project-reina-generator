@@ -15,11 +15,15 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import shlex
 import subprocess
 import sys
 
 # %run でも exec でも動くように __file__ 不在に備える
+# CLI が保存ごとに出す "  -> /path/to/image.png" の行
+SAVED_LINE = re.compile(r"->\s*(\S+\.png)\s*$")
+
 ROOT = (
     os.path.dirname(os.path.abspath(__file__))
     if "__file__" in dir()
@@ -35,42 +39,57 @@ def _display(paths: list[str]) -> None:
         print("\n".join(paths))
         return
     for path in paths:
-        print(os.path.relpath(path, ROOT))
         display(Image(path, width=WIDTH))
 
 
 def show(n: int = 1) -> list[str]:
-    """直近 n 枚を新しい順ではなく生成順で表示する。"""
+    """直近 n 枚を生成順（古い順）で表示する。"""
     files = sorted(glob.glob(f"{ROOT}/output/*/*.png"), key=os.path.getmtime)
     picked = files[-n:] if n else files
     if not picked:
         print("output/ に画像がありません")
-    _display(picked)
+    for path in picked:
+        print(os.path.relpath(path, ROOT))
+        _display([path])
     return picked
 
 
 def _run(args: list[str], expect: int) -> None:
-    """CLI を実行し、進捗（ステップ・経過秒）をそのまま流しながら待つ。
+    """CLI を実行し、進捗を流しながら、1枚保存されるたびにその場で表示する。
 
     行単位で読むと \r による進捗更新が改行まで出てこないので、
-    バイト列のまま少しずつ読んで書き出す。
+    バイト列のまま少しずつ読み、改行が来たところで保存行を拾う。
     """
     cmd = f"cd {shlex.quote(ROOT)} && {shlex.join([sys.executable, '-m', 'reina', *args])}"
     proc = subprocess.Popen(
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0
     )
     assert proc.stdout is not None
+
+    pending = ""
+    shown: list[str] = []
     while True:
         chunk = proc.stdout.read(128)
         if not chunk:
             break
-        sys.stdout.write(chunk.decode("utf-8", "replace"))
+        text = chunk.decode("utf-8", "replace")
+        sys.stdout.write(text)
         sys.stdout.flush()
+
+        pending += text
+        while "\n" in pending:
+            line, pending = pending.split("\n", 1)
+            match = SAVED_LINE.search(line.replace("\r", ""))
+            if match and os.path.exists(match.group(1)):
+                shown.append(match.group(1))
+                _display([match.group(1)])
+
     code = proc.wait()
     if code != 0:
         print(f"\n[失敗] 終了コード {code}")
-        return
-    show(expect)
+    if not shown and code == 0:
+        # 保存行を拾えなかったときの保険
+        show(expect)
 
 
 def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str = "shot", **opts) -> None:
