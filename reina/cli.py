@@ -65,13 +65,21 @@ def _make_client(cfg, args: argparse.Namespace) -> ComfyClient:
     )
 
 
+def _preset(name: str) -> Path:
+    """presets/<name>.yaml があればそれを、無ければ <name>.example.yaml を使う。
+
+    自分用の設定は .yaml（Git 管理外）に置く。サンプルは .example.yaml のまま
+    更新されるので、git pull で衝突しない。
+    """
+    own = ROOT / f"presets/{name}.yaml"
+    return own if own.exists() else ROOT / f"presets/{name}.example.yaml"
+
+
 def _resolve_character(args: argparse.Namespace) -> Character:
     if args.character:
         return load_character(args.character)
-    for candidate in (ROOT / "presets/character.yaml", ROOT / "presets/character.example.yaml"):
-        if candidate.exists():
-            return load_character(candidate)
-    return Character()
+    path = _preset("character")
+    return load_character(path) if path.exists() else Character()
 
 
 def _pick_encoder(client: ComfyClient, override: str | None) -> str:
@@ -323,7 +331,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
 def cmd_batch(args: argparse.Namespace) -> int:
     character = _resolve_character(args)
-    scenes_path = args.scenes or (ROOT / "presets/scenes.yaml")
+    scenes_path = args.scenes or _preset("scenes")
     scenes = load_scenes(scenes_path)
     if args.only:
         wanted = set(args.only)
@@ -338,7 +346,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
 
 def cmd_mix(args: argparse.Namespace) -> int:
     character = _resolve_character(args)
-    axes_path = args.axes or (ROOT / "presets/axes.yaml")
+    axes_path = args.axes or _preset("axes")
     axes = load_axes(axes_path)
     scenes = list(combine_axes(axes, limit=args.limit, seed=args.mix_seed))
     if not scenes:

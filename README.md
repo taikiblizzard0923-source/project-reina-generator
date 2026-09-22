@@ -290,9 +290,11 @@ reina/
   prompts.py    キャラクター定義 × シーン定義 → プロンプト
   config.py     config.yaml 読み込み
 presets/
-  character.example.yaml  人物の固定特徴
-  scenes.yaml             シーン一覧
-  axes.yaml               組み合わせ生成用の軸
+  character.example.yaml  人物の固定特徴（サンプル）
+  scenes.example.yaml     シーン一覧（サンプル）
+  axes.example.yaml       組み合わせ生成用の軸（サンプル）
+  *.yaml                  上をコピーした自分用の設定。Git 管理外なので
+                          編集しても git pull と衝突しない
 scripts/
   install_comfyui.sh      ComfyUI + ComfyUI-GGUF（ローカル用）
   download_models.sh      GGUF / テキストエンコーダ / VAE
