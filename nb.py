@@ -56,7 +56,7 @@ def show(n: int = 1) -> list[str]:
     return picked
 
 
-def _run(args: list[str], expect: int) -> None:
+def _run(args: list[str], expect: int) -> bool:
     """CLI を実行し、進捗を流しながら、1枚保存されるたびにその場で表示する。
 
     行単位で読むと \r による進捗更新が改行まで出てこないので、
@@ -89,9 +89,11 @@ def _run(args: list[str], expect: int) -> None:
     code = proc.wait()
     if code != 0:
         print(f"\n[失敗] 終了コード {code}")
-    if not shown and code == 0:
+        return False
+    if not shown:
         # 保存行を拾えなかったときの保険
         show(expect)
+    return True
 
 
 def _reference_args(ref: str | list[str] | None) -> list[str]:
@@ -101,7 +103,7 @@ def _reference_args(ref: str | list[str] | None) -> list[str]:
     return args
 
 
-def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str = "shot", **opts) -> None:
+def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str = "shot", **opts) -> bool:
     """1つのプロンプトから n 枚生成して表示する。
 
     opts は CLI のオプションにそのまま渡る（steps=30, cfg=3.0, width=1024 ...）。
@@ -112,10 +114,10 @@ def gen(prompt: str, ref: str | list[str] | None = None, n: int = 1, name: str =
         args.append("--keep-pose")
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
-    _run(args, n)
+    return _run(args, n)
 
 
-def batch(ref: str | list[str] | None = None, only: list[str] | None = None, n: int = 1, **opts) -> None:
+def batch(ref: str | list[str] | None = None, only: list[str] | None = None, n: int = 1, **opts) -> bool:
     """presets/scenes.yaml のシーンをまとめて生成して表示する。"""
     args = ["batch", "--repeat", str(n)]
     args += _reference_args(ref)
@@ -126,7 +128,7 @@ def batch(ref: str | list[str] | None = None, only: list[str] | None = None, n: 
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     expect = (len(only) if only else 8) * n
-    _run(args, expect)
+    return _run(args, expect)
 
 
 def mix(
@@ -135,7 +137,7 @@ def mix(
     n: int = 1,
     mix_seed: int | None = None,
     **opts,
-) -> None:
+) -> bool:
     """presets/axes.yaml の軸（服装×場所×光×構図）を掛け合わせて生成する。
 
     シーンを1つずつ書くより、当たりの組み合わせを広く探すのに向く。
@@ -148,7 +150,7 @@ def mix(
         args.append("--keep-pose")
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
-    _run(args, limit * n)
+    return _run(args, limit * n)
 
 
 def bench(steps: int = 8, width: int = 832, height: int = 1216, ref=None, **opts) -> None:
@@ -166,7 +168,7 @@ def bench(steps: int = 8, width: int = 832, height: int = 1216, ref=None, **opts
     label = f"steps={steps} {width}x{height}" + (" 参照画像あり" if ref else " 参照画像なし")
     print(f"=== 計測: {label} ===")
     started = time.time()
-    gen(
+    ok = gen(
         "a person standing in a photo studio, plain grey background, soft light",
         ref=ref,
         name="bench",
@@ -177,6 +179,10 @@ def bench(steps: int = 8, width: int = 832, height: int = 1216, ref=None, **opts
         **opts,
     )
     elapsed = time.time() - started
+    if not ok:
+        print(f"\n=== 計測できませんでした（{elapsed:.1f}s で失敗）===")
+        print("ComfyUI が落ちていないか:  !tail -n 40 /workspace/comfyui.log")
+        return
     print(f"\n=== 結果: 合計 {elapsed:.1f}s / {elapsed / steps:.2f} 秒/ステップ ===")
     if elapsed < steps * 0.2:
         print("!! 速すぎます。ComfyUI のキャッシュが返った可能性があります")
