@@ -271,6 +271,11 @@ def _run_jobs(
                 print(json.dumps({"stem": stem, "prompt": prompt, "workflow": graph}, ensure_ascii=False, indent=2))
                 continue
 
+            # ComfyUI 側でノードに必須入力が増えていても通るように補完する
+            added = client.fill_missing_inputs(graph)
+            if added and done == 1:
+                _log(f"  既定値で補完: {', '.join(added)}")
+
             _log(f"[{done}/{total}] {scene.id} seed={params['seed']}")
             started = time.time()
             try:

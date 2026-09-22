@@ -55,6 +55,7 @@ class ComfyClient:
             (("wss" if parsed.scheme == "https" else "ws"), parsed.netloc, parsed.path + "/ws", "", "", "")
         )
 
+        self._object_info_cache: dict[str, dict[str, Any]] = {}
         self.session = requests.Session()
         self.session.verify = verify
         auth = auth or {}
@@ -82,14 +83,54 @@ class ComfyClient:
 
     def object_info(self, node_class: str | None = None) -> dict[str, Any]:
         """利用可能なノード定義。カスタムノードの有無確認に使う。"""
+        if node_class is not None and node_class in self._object_info_cache:
+            return self._object_info_cache[node_class]
         url = f"{self.base_url}/object_info"
         if node_class:
             url += f"/{urllib.parse.quote(node_class)}"
         resp = self.session.get(url, timeout=60)
         if resp.status_code == 404:
-            return {}
-        resp.raise_for_status()
-        return resp.json()
+            info: dict[str, Any] = {}
+        else:
+            resp.raise_for_status()
+            info = resp.json()
+        if node_class is not None:
+            self._object_info_cache[node_class] = info
+        return info
+
+    def fill_missing_inputs(self, graph: dict[str, Any]) -> list[str]:
+        """未設定の必須入力を、ComfyUI が持つ既定値で埋める。
+
+        ComfyUI の更新でノードに必須入力が増えると
+        「Required input is missing」で投入が弾かれる。
+        接続が必要な入力（MODEL/CONDITIONING など）は既定値を持たないので触らない。
+        """
+        filled: list[str] = []
+        for node in graph.values():
+            node_class = node.get("class_type")
+            if not node_class:
+                continue
+            spec = (
+                self.object_info(node_class)
+                .get(node_class, {})
+                .get("input", {})
+                .get("required", {})
+            )
+            inputs = node.setdefault("inputs", {})
+            for name, entry in spec.items():
+                if name in inputs or not isinstance(entry, list) or not entry:
+                    continue
+                kind = entry[0]
+                options = entry[1] if len(entry) > 1 and isinstance(entry[1], dict) else {}
+                if isinstance(kind, list):  # 選択肢型
+                    value = options.get("default", kind[0] if kind else None)
+                else:
+                    value = options.get("default")
+                if value is None:  # 既定値なし = 他ノードからの接続が必要な入力
+                    continue
+                inputs[name] = value
+                filled.append(f"{node_class}.{name}={value}")
+        return filled
 
     def has_node(self, node_class: str) -> bool:
         return bool(self.object_info(node_class))
