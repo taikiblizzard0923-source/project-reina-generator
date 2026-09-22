@@ -24,3 +24,18 @@ axes:
     - "full body shot"
     - "waist-up portrait"
     - "head and shoulders portrait"
+
+  # 参照画像から引き継がれやすいので、明示的に振る
+  hair:
+    - "hair worn down and straight"
+    - "hair tied back in a ponytail"
+    - "hair in a loose bun"
+    - "shoulder-length wavy hair"
+    - "hair swept over one shoulder"
+
+  head_angle:
+    - "looking straight at the camera"
+    - "three-quarter view, head turned slightly away"
+    - "looking over her shoulder back at the camera"
+    - "profile view, looking to the side"
+    - "looking down, eyes lowered"

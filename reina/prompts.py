@@ -122,13 +122,17 @@ def build_prompt(
             return f"{head}{features} Change the scene to: {scene.prompt}. {tail}"
         head = (
             "Use the reference image only as the identity of the person: "
-            "the same face and the same facial features. "
-            "Do not copy the pose, the camera angle, the framing, the crop, "
-            "the expression, the clothing or the background from the reference image."
+            "the same facial features, so that the person is recognisable as the same individual. "
+            "Do not copy anything else from the reference image — "
+            "not the pose, the head angle, the direction the person is facing, the gaze, "
+            "the camera angle, the framing, the crop, the expression, "
+            "the hairstyle, the hair length, the makeup, "
+            "the clothing or the background."
         )
         body = (
-            "Take a completely new photograph of this person, with a different pose "
-            f"and a different camera angle: {scene.prompt}."
+            "Take a completely new photograph of this person, with a different pose, "
+            "a different head angle and a different hairstyle: "
+            f"{scene.prompt}."
         )
         return f"{head}{features} {body} {tail}"
 
