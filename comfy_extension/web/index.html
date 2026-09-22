@@ -82,6 +82,23 @@
 
 <div id="out"></div>
 
+<div class="card" style="margin-top:18px">
+  <div style="font-size:14px;font-weight:600;margin-bottom:2px">画像の追加 / Pod 移行</div>
+  <div class="sub" style="margin:0 0 10px">
+    参照画像をここから追加できます。Pod を作り直したときは、
+    先に取っておいたバックアップ（.tgz）をここに入れると設定ごと戻ります。
+  </div>
+
+  <label for="up">画像 または バックアップ(.tgz) を選ぶ</label>
+  <input id="up" type="file" multiple accept="image/*,.tgz,.gz,.tar">
+  <div style="height:10px"></div>
+  <button id="upbtn" class="ghost">アップロード</button>
+
+  <div style="height:14px"></div>
+  <button id="bkbtn" class="ghost">設定と参照画像をバックアップ</button>
+  <div class="sub" id="upmsg" style="margin-top:8px"></div>
+</div>
+
 <script>
 const $ = (id) => document.getElementById(id);
 let runId = null, timer = null;
@@ -159,6 +176,33 @@ $('go').onclick = async () => {
 
   runId = r.id;
   timer = setInterval(poll, 1000);
+};
+
+$('upbtn').onclick = async () => {
+  const files = $('up').files;
+  if (!files.length) { alert('ファイルを選んでください'); return; }
+  $('upbtn').disabled = true; $('upbtn').textContent = '送信中…';
+
+  const form = new FormData();
+  for (const f of files) form.append('file', f, f.name);
+  const r = await fetch('reina/upload', {method: 'POST', body: form}).then((r) => r.json());
+
+  $('upbtn').disabled = false; $('upbtn').textContent = 'アップロード';
+  const msg = [];
+  if (r.saved?.length) msg.push('追加: ' + r.saved.join(', '));
+  if (r.restored?.length) msg.push('復元: ' + r.restored.join(' / '));
+  if (r.errors?.length) msg.push('エラー: ' + r.errors.join(' / '));
+  $('upmsg').textContent = msg.join('\n') || '変更はありません';
+  load();
+};
+
+$('bkbtn').onclick = async () => {
+  $('bkbtn').disabled = true; $('bkbtn').textContent = '作成中…';
+  const b = await fetch('reina/backup').then((r) => r.json());
+  $('bkbtn').disabled = false; $('bkbtn').textContent = '設定と参照画像をバックアップ';
+  if (b.error) { $('upmsg').textContent = b.error; return; }
+  $('upmsg').textContent = `${(b.size / 1e6).toFixed(1)}MB — ダウンロードが始まります`;
+  location.href = 'reina/file?download=1&path=' + encodeURIComponent(b.path);
 };
 
 $('dl').onclick = async () => {

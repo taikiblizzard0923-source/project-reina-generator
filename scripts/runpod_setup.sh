@@ -85,6 +85,13 @@ else
   echo "==> SKIP_MODELS=1 のためモデル取得をスキップ"
 fi
 
+# ブラウザだけで使えるようにしておく（Pod 作り直しのたびに手で入れ直さずに済む）
+HERE_DIR="$(dirname "$(readlink -f "$0")")"
+TARGET="$COMFY/custom_nodes/reina_webui"
+rm -rf "$TARGET"
+ln -s "$(dirname "$HERE_DIR")/comfy_extension" "$TARGET"
+echo "==> Web UI を組み込みました（<ComfyUI の URL>/reina）"
+
 cat <<MSG
 
 ======================================================================
@@ -93,8 +100,11 @@ cat <<MSG
  起動:
    bash $(dirname "$(readlink -f "$0")")/runpod_start.sh
 
- 接続先（RunPod の Connect → "HTTP Service [Port 8188]"）:
-   https://<POD_ID>-8188.proxy.runpod.net
+ ブラウザだけで使う（スマホ可）:
+   https://${RUNPOD_POD_ID:-<POD_ID>}-8188.proxy.runpod.net/reina
+
+ Pod を作り直した場合は、この画面でバックアップ(.tgz)を
+ アップロードすれば設定と参照画像が戻ります。
 
  手元の PC からは:
    python -m reina doctor --server https://<POD_ID>-8188.proxy.runpod.net

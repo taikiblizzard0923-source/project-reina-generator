@@ -9,6 +9,8 @@
 #   bash go.sh clean    中断した/誤って掴んだダウンロードを消す
 #   bash go.sh fixdeps  壊れた Python パッケージを検出して入れ直す
 #   bash go.sh webui    ブラウザだけで使える生成 UI を ComfyUI に組み込む
+#   bash go.sh backup   設定と参照画像を1ファイルに退避（Pod 移行前に）
+#   bash go.sh restore <file>  退避したファイルから復元
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
 #   bash go.sh ps       まだ動いているか確認
 #   bash go.sh start    ComfyUI を起動
@@ -61,6 +63,21 @@ case "${1:-setup}" in
     PY="$COMFY/venv/bin/python"
     [ -x "$PY" ] || PY="$(command -v python3)"
     "$PY" "$HERE/scripts/fix_deps.py" --requirements "$COMFY/requirements.txt" "${@:2}"
+    ;;
+
+  backup)
+    python3 "$HERE/scripts/backup.py" create "${@:2}"
+    ;;
+
+  restore)
+    if [ -z "${2:-}" ]; then
+      echo "使い方: bash go.sh restore <バックアップ.tgz>"
+      echo
+      echo "downloads/ にあるもの:"
+      ls -1t "$HERE/downloads"/*.tgz 2>/dev/null | head -5 || echo "  (なし)"
+      exit 1
+    fi
+    python3 "$HERE/scripts/backup.py" restore "${@:2}"
     ;;
 
   webui)
@@ -161,6 +178,6 @@ MSG
     ;;
 
   *)
-    sed -n '2,17p' "${BASH_SOURCE[0]}"
+    sed -n '2,19p' "${BASH_SOURCE[0]}"
     ;;
 esac

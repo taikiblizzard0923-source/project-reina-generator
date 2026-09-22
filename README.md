@@ -175,6 +175,21 @@ JupyterLab もターミナルも触りません。
 
 内部では CLI をそのまま呼んでいるので、下の CLI / ノートブックと結果は同じです。
 
+ページ下部から参照画像の追加と、設定一式のバックアップ／復元もできます。
+
+### Pod を作り直すとき
+
+GitHub から戻るのはコードだけです。自分用の `presets/*.yaml`、`config.yaml`、
+`input/` の参照画像は Git 管理外なので、退避しておく必要があります。
+
+```bash
+bash go.sh backup            # downloads/ に .tgz を作る
+bash go.sh restore <file>    # 新しい Pod で戻す
+```
+
+ブラウザからも同じことができます（`…/reina` の下部）。
+移行後は Pod ID が変わるため URL も変わります（`bash go.sh url` で確認）。
+
 ---
 
 

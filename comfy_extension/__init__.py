@@ -222,6 +222,88 @@ async def zip_run(request: web.Request) -> web.Response:
     )
 
 
+# -- 移行対応（アップロード / バックアップ） --------------------------------
+
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+ARCHIVE_SUFFIXES = {".tgz", ".gz", ".tar"}
+
+
+def _run_backup(*args: str) -> tuple[int, str]:
+    import subprocess
+
+    proc = subprocess.run(
+        [_python(), str(REPO / "scripts" / "backup.py"), *args],
+        cwd=str(REPO),
+        capture_output=True,
+        text=True,
+    )
+    return proc.returncode, (proc.stdout + proc.stderr).strip()
+
+
+@routes.post("/reina/upload")
+async def upload(request: web.Request) -> web.Response:
+    """参照画像、またはバックアップ tgz を受け取る。
+
+    Pod を作り直すと input/ と自分用の設定は消えるので、
+    復元もこの口から行えるようにしてある。
+    """
+    reader = await request.multipart()
+    saved: list[str] = []
+    restored: list[str] = []
+    errors: list[str] = []
+
+    (REPO / "input").mkdir(exist_ok=True)
+    uploads = REPO / "downloads"
+    uploads.mkdir(exist_ok=True)
+
+    while True:
+        part = await reader.next()
+        if part is None:
+            break
+        if not part.filename:
+            continue
+
+        name = Path(part.filename).name  # ディレクトリ部分は捨てる
+        suffix = Path(name).suffix.lower()
+
+        if suffix in IMAGE_SUFFIXES:
+            target = REPO / "input" / name
+        elif suffix in ARCHIVE_SUFFIXES:
+            target = uploads / name
+        else:
+            errors.append(f"{name}: 対応していない形式です")
+            await part.read()
+            continue
+
+        with target.open("wb") as fh:
+            while chunk := await part.read_chunk():
+                fh.write(chunk)
+
+        if suffix in IMAGE_SUFFIXES:
+            saved.append(str(target.relative_to(REPO)))
+        else:
+            code, output = _run_backup("restore", str(target))
+            (restored if code == 0 else errors).append(f"{name}: {output.splitlines()[-1]}")
+
+    return web.json_response({"saved": saved, "restored": restored, "errors": errors})
+
+
+@routes.get("/reina/backup")
+async def backup(request: web.Request) -> web.Response:
+    """設定と参照画像を1ファイルにまとめる（Pod 移行用）。"""
+    code, output = _run_backup("create")
+    if code != 0:
+        return web.json_response({"error": output}, status=500)
+
+    first = output.splitlines()[0].split("  ")[0]
+    path = Path(first)
+    if not path.exists():
+        return web.json_response({"error": output}, status=500)
+    return web.json_response(
+        {"path": str(path.relative_to(REPO.resolve())), "size": path.stat().st_size}
+    )
+
+
 @routes.get("/reina")
 async def index(request: web.Request) -> web.StreamResponse:
     return web.FileResponse(WEB / "index.html")

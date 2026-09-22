@@ -1,14 +1,35 @@
 # 再開手順（スマホ・RunPod）
 
-## Pod を作り直した場合（/workspace が空）
+## Pod を作り直すとき（移行手順）
+
+GitHub に入っているもの（コード・サンプル）は clone で戻る。
+**戻らないのは Git 管理外のもの** — 自分用の `presets/*.yaml`、`config.yaml`、
+`input/` の参照画像。これは事前に退避しておく。
+
+### 移行前：バックアップを手元に落とす
+
+ブラウザで `…/reina` を開き、**「設定と参照画像をバックアップ」** を押す。
+`.tgz` が端末にダウンロードされる。（ターミナルからなら `bash go.sh backup`）
+
+### 新しい Pod で：1コマンド
 
 ```python
 !cd /workspace && git clone -b claude/qwen-image-generation-f2k812 https://github.com/taikiblizzard0923-source/project-reina-generator.git && cd project-reina-generator && bash go.sh
 ```
 
-ComfyUI + 公式 safetensors モデルまで一括で入る（20分前後）。
-Pod 作成時に **Volume Disk 60GB / マウントパス `/workspace`** を設定し忘れると
-停止時に全部消えるので注意（設定漏れがあればセットアップ中に警告が出る）。
+ComfyUI + モデル + Web UI まで一括で入る（20分前後）。
+
+### 移行後：バックアップを戻す
+
+新しい Pod の `https://<新しいPOD_ID>-8188.proxy.runpod.net/reina` を開き、
+ページ下部の **「画像の追加 / Pod 移行」** に `.tgz` をアップロードすれば、
+設定と参照画像が戻る。（ターミナルからなら `bash go.sh restore <file>`）
+
+> Pod 作成時に **Volume Disk 60GB / マウントパス `/workspace`** を設定し忘れると
+> 停止時に全部消える。設定漏れがあればセットアップ中に警告が出る。
+
+> **Pod ID が変わるので URL も変わる。** 新しい URL は
+> `bash go.sh url` か、セットアップ完了時のメッセージで確認できる。
 
 ---
 

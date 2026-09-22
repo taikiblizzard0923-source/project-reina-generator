@@ -46,6 +46,7 @@ spec = importlib.util.spec_from_file_location(
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 
+import aiohttp  # noqa: E402
 from aiohttp import web  # noqa: E402
 from aiohttp.test_utils import TestClient, TestServer  # noqa: E402
 
@@ -98,6 +99,33 @@ async def main():
     print(f"  ダウンロード status={r.status} bytes={len(await r.read())} "
           f"header={r.headers.get('Content-Disposition')}")
 
+    print("=== GET /reina/backup ===")
+    b = await (await client.get("/reina/backup")).json()
+    print("  ", b)
+
+    print("=== POST /reina/upload（画像）===")
+    import io
+    form = aiohttp.FormData()
+    form.add_field("file", io.BytesIO(b"\xff\xd8\xff\xe0"), filename="uploaded.png")
+    u = await (await client.post("/reina/upload", data=form)).json()
+    print("  ", u)
+    print("  input/ に出たか:",
+          "input/uploaded.png" in (await (await client.get("/reina/options")).json())["images"])
+
+    print("=== POST /reina/upload（バックアップを復元）===")
+    archive = REPO / b["path"]
+    form = aiohttp.FormData()
+    form.add_field("file", archive.read_bytes(), filename=archive.name)
+    u = await (await client.post("/reina/upload", data=form)).json()
+    print("  restored:", u["restored"], "errors:", u["errors"])
+
+    print("=== 対応しない形式 ===")
+    form = aiohttp.FormData()
+    form.add_field("file", b"x", filename="evil.sh")
+    u = await (await client.post("/reina/upload", data=form)).json()
+    print("  ", u["errors"])
+
+    (REPO / "input" / "uploaded.png").unlink(missing_ok=True)
     await client.close()
 
 if __name__ == "__main__":
