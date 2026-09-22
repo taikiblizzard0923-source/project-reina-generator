@@ -7,6 +7,7 @@
 #   bash go.sh official 公式 safetensors 版の拡散モデルに切り替える（VRAM 24GB+）
 #   bash go.sh info <repo>  HF リポジトリの中身とサイズを見る（DL前の確認用）
 #   bash go.sh clean    中断した/誤って掴んだダウンロードを消す
+#   bash go.sh fixdeps  壊れた Python パッケージを検出して入れ直す
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
 #   bash go.sh ps       まだ動いているか確認
 #   bash go.sh start    ComfyUI を起動
@@ -53,6 +54,12 @@ case "${1:-setup}" in
     sleep 2
     echo "開始しました (pid $!)"
     echo "進捗:  bash go.sh log"
+    ;;
+
+  fixdeps)
+    PY="$COMFY/venv/bin/python"
+    [ -x "$PY" ] || PY="$(command -v python3)"
+    "$PY" "$HERE/scripts/fix_deps.py" --requirements "$COMFY/requirements.txt" "${@:2}"
     ;;
 
   info)
@@ -119,6 +126,6 @@ case "${1:-setup}" in
     ;;
 
   *)
-    sed -n '2,15p' "${BASH_SOURCE[0]}"
+    sed -n '2,16p' "${BASH_SOURCE[0]}"
     ;;
 esac

@@ -61,6 +61,11 @@ python -c "import torch" 2>/dev/null || {
 echo "==> ComfyUI 依存"
 pip install -q -r requirements.txt
 
+# ディスク不足などで pip が中断されると中身の無いパッケージが残り、
+# import は通るのに中身が無い、という分かりにくい形で後から壊れる
+echo "==> 依存パッケージの健全性チェック"
+python "$(dirname "$(readlink -f "$0")")/fix_deps.py" --requirements requirements.txt || true
+
 echo "==> ComfyUI-GGUF"
 mkdir -p custom_nodes
 if [ ! -d custom_nodes/ComfyUI-GGUF ]; then
