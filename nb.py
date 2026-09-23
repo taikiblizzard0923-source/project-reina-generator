@@ -10,6 +10,8 @@
         scene_ref=["input/room.jpg", "input/pet.jpg=her golden retriever"])
     gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
+    compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])   # cfgだけ変えて比較
+    compare("standing in a studio", ref=R, steps=[12, 20, 30])    # stepsだけ変えて比較
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
     batch(ref="input/me.jpg", scenes="beach")        # presets/beach.yaml を使う
     mix(ref="input/me.jpg", limit=12)                # presets/axes.yaml の組み合わせ
@@ -344,6 +346,34 @@ def mix(
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     return _run(args, limit * n)
+
+
+def compare(prompt: str, ref=None, seed: int | None = None, label_fmt: str | None = None, **grid) -> None:
+    """同じシード・プロンプトのまま、パラメータだけ変えて並べて比較する。
+
+    grid の各キーワードにリストを渡すと、その全組み合わせを生成する。
+    複数キーを渡すと直積になる（数が増えすぎないよう注意）。
+
+        compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])
+        compare("standing in a studio", ref=R, steps=[12, 20, 30], cfg=[1.5, 3.0])
+    """
+    import itertools
+    import random
+
+    if not grid:
+        print("比較するパラメータを指定してください（例: cfg=[1.5, 2.0, 3.0]）")
+        return
+    seed = seed if seed is not None else random.randint(0, 2**31)
+
+    keys = list(grid)
+    combos = list(itertools.product(*(grid[k] if isinstance(grid[k], (list, tuple)) else [grid[k]] for k in keys)))
+
+    print(f"seed={seed} を固定して {len(combos)} 通りを比較します")
+    for combo in combos:
+        overrides = dict(zip(keys, combo))
+        label = label_fmt.format(**overrides) if label_fmt else " ".join(f"{k}={v}" for k, v in overrides.items())
+        print(f"\n--- {label} ---")
+        gen(prompt, ref=ref, seed=seed, name="cmp", **overrides)
 
 
 def bench(steps: int = 8, width: int = 832, height: int = 1216, ref=None, **opts) -> None:
