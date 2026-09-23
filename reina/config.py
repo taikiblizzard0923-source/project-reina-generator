@@ -27,8 +27,8 @@ DEFAULTS: dict[str, Any] = {
         "clip_type": "qwen_image",
     },
     "defaults": {
-        "width": 1024,
-        "height": 1536,
+        "width": 832,
+        "height": 1216,
         "steps": 20,
         "cfg": 2.0,
         "shift": 3.1,
