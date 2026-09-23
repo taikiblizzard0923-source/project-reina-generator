@@ -114,6 +114,13 @@ MSG
     tail -n 40 /workspace/comfyui.log
     ;;
 
+  start2)
+    bash "$HERE/scripts/runpod_start.sh" --daemon
+    echo "起動ログを表示します（Ctrl-C で抜けてもComfyUIは動き続けます）"
+    sleep 2
+    tail -f /workspace/comfyui.log
+    ;;
+
   info)
     repo="${2:-vantagewithai/Qwen-Image-2.1-ComfyUI-GGUF}"
     python3 "$HERE/scripts/hf_info.py" "$repo"
