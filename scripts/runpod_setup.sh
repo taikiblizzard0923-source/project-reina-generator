@@ -59,7 +59,7 @@ python -c "import torch" 2>/dev/null || {
 }
 
 echo "==> ComfyUI 依存"
-pip install -q -r requirements.txt
+pip install --progress-bar off -r requirements.txt
 
 # ディスク不足などで pip が中断されると中身の無いパッケージが残り、
 # import は通るのに中身が無い、という分かりにくい形で後から壊れる
@@ -73,7 +73,7 @@ if [ ! -d custom_nodes/ComfyUI-GGUF ]; then
 else
   git -C custom_nodes/ComfyUI-GGUF pull --ff-only || true
 fi
-pip install -q -r custom_nodes/ComfyUI-GGUF/requirements.txt
+pip install --progress-bar off -r custom_nodes/ComfyUI-GGUF/requirements.txt
 
 mkdir -p models/unet models/text_encoders models/vae models/loras input output
 
