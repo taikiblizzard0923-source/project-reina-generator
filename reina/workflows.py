@@ -17,10 +17,18 @@ from typing import Any
 Graph = dict[str, dict[str, Any]]
 
 # 参照画像つきエンコーダの候補（先に見つかったものを使う）
+# TextEncodeQwenImage21 は Qwen-Image 2.1 用の新ノード（ComfyUI v0.37.0〜）。
+# 1回の呼び出しで positive/negative 両方を出力し、参照画像は最大16枚（可変入力）。
+# 古いノード（*EditPlus 系）は image1〜image3 の3枚固定で、positive/negative を
+# 別々に2回呼ぶ必要がある。
 EDIT_ENCODER_CANDIDATES = (
+    "TextEncodeQwenImage21",
     "TextEncodeQwenImageEditPlus",
     "TextEncodeQwenImageEdit",
 )
+
+# 1ノードで positive/negative を同時に出すタイプ（画像入力名も image_1 形式）
+COMBINED_ENCODERS = ("TextEncodeQwenImage21",)
 
 MAX_SEED = 2**32 - 1
 
@@ -181,14 +189,28 @@ class WorkflowBuilder:
             }
             scaled_refs.append([scale_id, 0])
 
-        pos_inputs: dict[str, Any] = {"clip": clip_ref, "prompt": prompt, "vae": vae_ref}
-        neg_inputs: dict[str, Any] = {"clip": clip_ref, "prompt": negative, "vae": vae_ref}
-        for index, ref in enumerate(scaled_refs):
-            pos_inputs[f"image{index + 1}"] = ref
-            neg_inputs[f"image{index + 1}"] = ref
-
-        graph["10"] = {"class_type": encoder_class, "inputs": pos_inputs}
-        graph["11"] = {"class_type": encoder_class, "inputs": neg_inputs}
+        if encoder_class in COMBINED_ENCODERS:
+            # 新ノード: 1回で positive/negative 両方を出す。画像は image_1, image_2, ...
+            inputs: dict[str, Any] = {
+                "clip": clip_ref,
+                "prompt": prompt,
+                "negative_prompt": negative,
+                "vae": vae_ref,
+                "resolution": int(self.defaults.get("reference_resolution", 1024)),
+            }
+            for index, ref in enumerate(scaled_refs):
+                inputs[f"image_{index + 1}"] = ref
+            graph["10"] = {"class_type": encoder_class, "inputs": inputs}
+            positive_out, negative_out = ["10", 0], ["10", 1]
+        else:
+            pos_inputs: dict[str, Any] = {"clip": clip_ref, "prompt": prompt, "vae": vae_ref}
+            neg_inputs: dict[str, Any] = {"clip": clip_ref, "prompt": negative, "vae": vae_ref}
+            for index, ref in enumerate(scaled_refs):
+                pos_inputs[f"image{index + 1}"] = ref
+                neg_inputs[f"image{index + 1}"] = ref
+            graph["10"] = {"class_type": encoder_class, "inputs": pos_inputs}
+            graph["11"] = {"class_type": encoder_class, "inputs": neg_inputs}
+            positive_out, negative_out = ["10", 0], ["11", 0]
 
         # 1枚目の参照画像を初期 latent にする（構図を引き継ぐ）
         if params["denoise"] < 1.0:
@@ -209,7 +231,7 @@ class WorkflowBuilder:
             latent = ["12", 0]
 
         return self._sampler_and_output(
-            graph, model_ref, ["10", 0], ["11", 0], latent, vae_ref, params
+            graph, model_ref, positive_out, negative_out, latent, vae_ref, params
         )
 
 
