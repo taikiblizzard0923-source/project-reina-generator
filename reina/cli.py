@@ -12,6 +12,8 @@ from typing import Any
 
 from .client import ComfyClient, ComfyError
 from .config import load_config
+from dataclasses import replace
+
 from .prompts import (
     Character,
     Scene,
@@ -335,8 +337,15 @@ def _run_jobs(
             params.setdefault("seed", random_seed())
             params["prefix"] = f"{character.name}/{scene.id}"
 
+            job_character = character
+            if getattr(args, "style", None) is not None or getattr(args, "quality", None) is not None:
+                job_character = replace(
+                    character,
+                    style=args.style if args.style is not None else character.style,
+                    quality=args.quality if args.quality is not None else character.quality,
+                )
             prompt = build_prompt(
-                character, scene,
+                job_character, scene,
                 reference_mode=reference_mode,
                 keep_pose=getattr(args, "keep_pose", False),
                 identity_count=len(reference_paths),
@@ -488,6 +497,12 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("-o", "--out", help="出力ディレクトリ（既定: output/）")
     parser.add_argument("--negative", help="ネガティブプロンプトに追記")
+    parser.add_argument(
+        "--style", help="character.yaml の style を今回だけ上書き（空文字で無効化）"
+    )
+    parser.add_argument(
+        "--quality", help="character.yaml の quality を今回だけ上書き（空文字で無効化）"
+    )
     parser.add_argument("--seed", type=int, help="固定シード（--repeat で +1 ずつ）")
     parser.add_argument("--repeat", type=int, default=1, help="1シーンあたりの生成枚数")
     parser.add_argument("--width", type=int)
