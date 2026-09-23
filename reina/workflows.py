@@ -190,16 +190,23 @@ class WorkflowBuilder:
             scaled_refs.append([scale_id, 0])
 
         if encoder_class in COMBINED_ENCODERS:
-            # 新ノード: 1回で positive/negative 両方を出す。画像は image_1, image_2, ...
+            # 新ノード: 1回で positive/negative 両方を出す。
+            # 画像は可変入力(COMFY_AUTOGROW_V3)で、実行時は
+            # execute(images={"image_1": ..., "image_2": ...}) という形で
+            # 1個の dict にまとめて渡す必要がある
+            # （image_1 を直接トップレベルのキーにすると
+            #  "unexpected keyword argument 'image_1'" で弾かれる）。
+            images: dict[str, Any] = {
+                f"image_{index + 1}": ref for index, ref in enumerate(scaled_refs)
+            }
             inputs: dict[str, Any] = {
                 "clip": clip_ref,
                 "prompt": prompt,
                 "negative_prompt": negative,
                 "vae": vae_ref,
                 "resolution": int(self.defaults.get("reference_resolution", 1024)),
+                "images": images,
             }
-            for index, ref in enumerate(scaled_refs):
-                inputs[f"image_{index + 1}"] = ref
             graph["10"] = {"class_type": encoder_class, "inputs": inputs}
             positive_out, negative_out = ["10", 0], ["10", 1]
         else:
