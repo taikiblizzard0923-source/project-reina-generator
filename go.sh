@@ -9,6 +9,7 @@
 #   bash go.sh clean    中断した/誤って掴んだダウンロードを消す
 #   bash go.sh fixdeps  壊れた Python パッケージを検出して入れ直す
 #   bash go.sh webui    ブラウザだけで使える生成 UI を ComfyUI に組み込む
+#   bash go.sh lora <URL> [--name N] [--strength 0.85]  LoRA を追加
 #   bash go.sh backup   設定と参照画像を1ファイルに退避（Pod 移行前に）
 #   bash go.sh restore <file>  退避したファイルから復元
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
@@ -63,6 +64,14 @@ case "${1:-setup}" in
     PY="$COMFY/venv/bin/python"
     [ -x "$PY" ] || PY="$(command -v python3)"
     "$PY" "$HERE/scripts/fix_deps.py" --requirements "$COMFY/requirements.txt" "${@:2}"
+    ;;
+
+  lora)
+    if [ -z "${2:-}" ]; then
+      echo "使い方: bash go.sh lora <URL> [--name NAME] [--strength 0.85]"
+      exit 1
+    fi
+    python3 "$HERE/scripts/add_lora.py" "${@:2}" --comfy "$COMFY"
     ;;
 
   backup)
@@ -185,6 +194,6 @@ MSG
     ;;
 
   *)
-    sed -n '2,19p' "${BASH_SOURCE[0]}"
+    sed -n '2,20p' "${BASH_SOURCE[0]}"
     ;;
 esac

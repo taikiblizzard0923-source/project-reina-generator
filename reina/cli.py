@@ -249,6 +249,21 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         ok = False
         _log("[NG] node CLIPLoaderGGUF (ComfyUI-GGUF が必要)")
 
+    if cfg.loras:
+        lora_names = set(client.model_list("loras"))
+        if not client.has_node("LoraLoaderModelOnly"):
+            ok = False
+            _log("[NG] node LoraLoaderModelOnly")
+        for lora in cfg.loras:
+            name = lora.get("name", "")
+            if name in lora_names:
+                _log(f"[OK] lora: {name} (strength={lora.get('strength', 1.0)})")
+            else:
+                ok = False
+                _log(f"[NG] lora: '{name}' が models/loras に見つかりません")
+                if lora_names:
+                    _log(f"     候補: {', '.join(sorted(lora_names)[:12])}")
+
     encoder = next((c for c in EDIT_ENCODER_CANDIDATES if client.has_node(c)), None)
     if encoder:
         _log(f"[OK] 参照画像エンコーダ: {encoder}")

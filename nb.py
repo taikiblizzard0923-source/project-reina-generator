@@ -19,6 +19,7 @@
     show(4)                                          # 直近4枚を表示し直す
     bench()                                          # 速度を測る（設定比較用）
     ref_limit()                                      # 参照画像の上限を確認
+    add_lora("https://huggingface.co/xxx/yyy/resolve/main/reina_v1.safetensors")  # LoRA追加
 
     # シーン定義を渡して一括生成 → ZIP にまとめてダウンロード
     pack(scenes="beach", ref=["input/face.png", "input/side.png", "input/body.png"])
@@ -239,6 +240,26 @@ def pack(
         print("生成に失敗したため ZIP は作りません")
         return ""
     return zip_run()
+
+
+def add_lora(url: str, name: str | None = None, strength: float = 0.85, replace: bool = False) -> None:
+    """LoRA を URL からダウンロードして models/loras/ に置き、config.yaml に登録する。
+
+    次の gen()/batch()/mix() から自動的に反映される（ComfyUI 再起動不要）。
+        add_lora("https://huggingface.co/xxx/yyy/resolve/main/reina_v1.safetensors")
+        add_lora("https://huggingface.co/xxx/yyy", name="reina_v1.safetensors")  # ページURLでも可
+    """
+    args = [os.path.join(ROOT, "scripts", "add_lora.py"), url]
+    if name:
+        args += ["--name", name]
+    args += ["--strength", str(strength)]
+    if replace:
+        args.append("--replace")
+    comfy = os.environ.get("REINA_COMFY_DIR", "/workspace/ComfyUI")
+    args += ["--comfy", comfy]
+    cmd = f"cd {shlex.quote(ROOT)} && {shlex.join([sys.executable, *args])}"
+    proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    print((proc.stdout + proc.stderr).strip())
 
 
 def ref_limit(node: str | None = None) -> int:
