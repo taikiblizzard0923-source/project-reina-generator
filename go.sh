@@ -15,6 +15,7 @@
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
 #   bash go.sh ps       まだ動いているか確認
 #   bash go.sh start    ComfyUI を起動
+#   bash go.sh restart  ComfyUI を再起動（Web UI の更新を反映するとき）
 #   bash go.sh check    doctor（疎通・モデル確認）
 #   bash go.sh url      接続用 URL を表示
 set -uo pipefail
@@ -181,6 +182,15 @@ MSG
     ;;
 
   start)
+    bash "$HERE/scripts/runpod_start.sh" --daemon
+    ;;
+
+  restart)
+    # Web UI（custom_nodes/reina_webui）のサーバー側は起動時にしか読み込まれない
+    if pkill -f "main.py --listen"; then
+      echo "ComfyUI を停止しました"
+      for _ in $(seq 1 20); do pgrep -f "main.py --listen" >/dev/null || break; sleep 1; done
+    fi
     bash "$HERE/scripts/runpod_start.sh" --daemon
     ;;
 

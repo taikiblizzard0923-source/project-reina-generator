@@ -124,12 +124,45 @@ async def _pump(run: dict, proc: asyncio.subprocess.Process) -> None:
     run["finished"] = True
 
 
+@routes.get("/reina/recent")
+async def recent(request: web.Request) -> web.Response:
+    """編集する画像を選ぶための、最近生成した画像の一覧（新しい順）。"""
+    try:
+        limit = max(1, min(int(request.query.get("limit", 24)), 100))
+    except ValueError:
+        limit = 24
+    root = REPO.resolve()
+    files = sorted(
+        (root / "output").glob("*/*.png"), key=lambda p: p.stat().st_mtime, reverse=True
+    )[:limit]
+    return web.json_response({"images": [str(p.relative_to(root)) for p in files]})
+
+
+def _edit_args(body: dict) -> list[str] | None:
+    image = _safe(str(body.get("image") or ""))
+    instruction = str(body.get("instruction") or "").strip()
+    if not image or not image.is_file() or not instruction:
+        return None
+    args = ["edit", instruction, "--image", str(image)]
+    if body.get("raw"):
+        args.append("--raw")
+    for key in ("repeat", "seed"):
+        if body.get(key) not in (None, ""):
+            args += [f"--{key}", str(body[key])]
+    return args
+
+
 @routes.post("/reina/run")
 async def run(request: web.Request) -> web.Response:
     body = await request.json()
 
     args = [_python(), "-m", "reina"]
-    if body.get("prompt"):
+    if body.get("mode") == "edit":
+        edit_args = _edit_args(body)
+        if edit_args is None:
+            return web.json_response({"error": "編集する画像と指示を指定してください"}, status=400)
+        args += edit_args
+    elif body.get("prompt"):
         args += ["generate", body["prompt"], "--name", "web"]
     elif body.get("mode") == "mix":
         args += ["mix", "--limit", str(body.get("limit") or 12)]
@@ -140,15 +173,16 @@ async def run(request: web.Request) -> web.Response:
         if body.get("scenes"):
             args += ["--scenes", body["scenes"]]
 
-    for path in body.get("ref") or []:
-        args += ["-r", path]
-    for path in body.get("scene_ref") or []:
-        args += ["-s", path]
-    for key in ("steps", "cfg", "width", "height", "repeat", "batch_size", "seed"):
-        if body.get(key) not in (None, ""):
-            args += [f"--{key.replace('_', '-')}", str(body[key])]
-    if body.get("keep_pose"):
-        args += ["--keep-pose"]
+    if body.get("mode") != "edit":
+        for path in body.get("ref") or []:
+            args += ["-r", path]
+        for path in body.get("scene_ref") or []:
+            args += ["-s", path]
+        for key in ("steps", "cfg", "width", "height", "repeat", "batch_size", "seed"):
+            if body.get(key) not in (None, ""):
+                args += [f"--{key.replace('_', '-')}", str(body[key])]
+        if body.get("keep_pose"):
+            args += ["--keep-pose"]
 
     proc = await asyncio.create_subprocess_exec(
         *args,

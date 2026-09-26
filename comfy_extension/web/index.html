@@ -34,8 +34,18 @@
   .imgs label { display:flex; align-items:center; gap:6px; margin:0; padding:7px 10px;
           border:1px solid var(--line); border-radius:8px; font-size:13px; color:var(--fg); }
   .imgs input { width:auto; }
-  #log { white-space:pre-wrap; font:12px/1.5 ui-monospace,monospace; color:var(--muted);
+  .log { white-space:pre-wrap; font:12px/1.5 ui-monospace,monospace; color:var(--muted);
          max-height:140px; overflow:auto; margin-top:10px; }
+  .title { font-size:14px; font-weight:600; margin-bottom:2px; }
+  .thumbs { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:6px;
+            max-height:280px; overflow:auto; }
+  .thumbs img { width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:6px;
+                border:3px solid transparent; display:block; }
+  .thumbs img.sel { border-color:var(--accent); }
+  .check { display:flex; align-items:center; gap:8px; color:var(--fg); }
+  .check input { width:auto; }
+  .acts { display:flex; gap:16px; }
+  .acts a { cursor:pointer; }
   .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:10px; }
   .bar div { height:100%; width:0; background:var(--accent); transition:width .25s; }
   .shot { margin-top:12px; }
@@ -88,7 +98,7 @@
   </div>
 
   <div class="bar"><div id="bar"></div></div>
-  <div id="log"></div>
+  <div id="log" class="log"></div>
 </div>
 
 <button id="go">生成する</button>
@@ -96,6 +106,36 @@
 <button id="dl" class="ghost" disabled>ZIP をダウンロード</button>
 
 <div id="out"></div>
+
+<div class="card" id="editCard" style="margin-top:18px">
+  <div class="title">画像を編集</div>
+  <div class="sub" style="margin:0 0 4px">
+    生成した画像に修正の指示を出して直します。指示は具体的な英語が通りやすいです。
+    直した画像にも続けて修正を重ねられます。
+  </div>
+
+  <label>編集する画像（生成結果の「この画像を編集」か、ここから選ぶ）</label>
+  <div class="thumbs" id="recent"></div>
+  <div style="height:8px"></div>
+  <button id="reload" class="ghost">最近の画像を読み込み直す</button>
+
+  <div class="shot" id="editPick" style="display:none"><img id="editImg" alt=""></div>
+
+  <label for="instr">修正の指示</label>
+  <textarea id="instr" placeholder="Change the white T-shirt to a navy blue T-shirt."></textarea>
+  <label class="check"><input type="checkbox" id="raw">指示文だけを送る（「それ以外は変えない」を付けない）</label>
+
+  <div class="row">
+    <div><label for="erepeat">枚数</label><input id="erepeat" type="number" value="1" inputmode="numeric"></div>
+    <div><label for="eseed">シード（空欄でランダム）</label><input id="eseed" type="number" inputmode="numeric"></div>
+  </div>
+
+  <div class="bar"><div id="ebar"></div></div>
+  <div id="elog" class="log"></div>
+  <div style="height:10px"></div>
+  <button id="editgo">編集する</button>
+  <div id="eout"></div>
+</div>
 
 <div class="card" style="margin-top:18px">
   <div style="font-size:14px;font-weight:600;margin-bottom:2px">画像の追加 / Pod 移行</div>
@@ -116,7 +156,7 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-let runId = null, timer = null;
+let runId = null;
 
 function checkboxes(target, images) {
   target.innerHTML = images.length
@@ -148,40 +188,116 @@ $('mode').onchange = () => {
   $('mixBox').style.display = mix ? '' : 'none';
 };
 
-async function poll() {
-  const s = await fetch('reina/status?id=' + runId).then((r) => r.json());
-  if (s.error) return;
+const fileUrl = (p, download) =>
+  'reina/file?' + (download ? 'download=1&' : '') + 'path=' + encodeURIComponent(p);
 
-  const done = s.total ? (s.current - 1 + (s.steps ? s.step / s.steps : 0)) / s.total : 0;
-  $('bar').style.width = Math.max(0, Math.min(100, done * 100)) + '%';
-  $('log').textContent =
-    (s.total ? `${s.current}/${s.total} 枚目  ` : '') +
-    (s.steps ? `${s.step}/${s.steps} ステップ  ` : '') +
-    `${s.elapsed}s\n` + s.log.split('\n').slice(-6).join('\n');
-
-  const shown = $('out').childElementCount;
-  s.images.slice(shown).forEach((p) => {
-    const div = document.createElement('div');
-    div.className = 'shot';
-    div.innerHTML =
-      `<img src="reina/file?path=${encodeURIComponent(p)}">` +
-      `<a href="reina/file?download=1&path=${encodeURIComponent(p)}" download>この1枚を保存</a>`;
-    $('out').appendChild(div);
-  });
-
-  if (s.finished) {
-    clearInterval(timer);
-    $('go').disabled = false;
-    $('go').textContent = '生成する';
-    $('bar').style.width = '100%';
-    if (s.returncode === 0 && s.images.length) {
-      $('dl').disabled = false;
-    } else if (s.returncode !== 0) {
-      $('log').innerHTML += `<div class="err">失敗しました（終了コード ${s.returncode}）</div>`;
-    }
-  }
+function shot(p) {
+  const div = document.createElement('div');
+  div.className = 'shot';
+  div.innerHTML =
+    `<img src="${fileUrl(p)}" alt="">` +
+    `<div class="acts"><a href="${fileUrl(p, true)}" download>この1枚を保存</a>` +
+    `<a data-edit>この画像を編集</a></div>`;
+  div.querySelector('[data-edit]').onclick = () => {
+    pickForEdit(p);
+    $('editCard').scrollIntoView({behavior: 'smooth'});
+  };
+  return div;
 }
 
+// 1回の実行の進捗を ui（bar / log / out / btn）に反映し続ける
+function watch(id, ui) {
+  const timer = setInterval(async () => {
+    const s = await fetch('reina/status?id=' + id).then((r) => r.json());
+    if (s.error) return;
+
+    const done = s.total ? (s.current - 1 + (s.steps ? s.step / s.steps : 0)) / s.total : 0;
+    ui.bar.style.width = Math.max(0, Math.min(100, done * 100)) + '%';
+    ui.log.textContent =
+      (s.total ? `${s.current}/${s.total} 枚目  ` : '') +
+      (s.steps ? `${s.step}/${s.steps} ステップ  ` : '') +
+      `${s.elapsed}s\n` + s.log.split('\n').slice(-6).join('\n');
+
+    const shown = ui.out.childElementCount;
+    s.images.slice(shown).forEach((p) => ui.out.appendChild(shot(p)));
+
+    if (s.finished) {
+      clearInterval(timer);
+      ui.btn.disabled = false;
+      ui.btn.textContent = ui.idle;
+      ui.bar.style.width = '100%';
+      if (s.returncode !== 0) {
+        ui.log.innerHTML += `<div class="err">失敗しました（終了コード ${s.returncode}）</div>`;
+      }
+      if (ui.onDone) ui.onDone(s);
+    }
+  }, 1000);
+}
+
+// -- 編集 --
+let editPath = null;
+
+function pickForEdit(p) {
+  editPath = p;
+  $('editImg').src = fileUrl(p);
+  $('editPick').style.display = '';
+  $('recent').querySelectorAll('img').forEach((img) => {
+    img.classList.toggle('sel', img.dataset.path === p);
+  });
+}
+
+async function loadRecent() {
+  const r = await fetch('reina/recent?limit=16').then((r) => r.json());
+  $('recent').innerHTML = '';
+  if (!r.images.length) {
+    $('recent').innerHTML = '<span class="sub">まだ生成した画像がありません</span>';
+    return;
+  }
+  r.images.forEach((p) => {
+    const img = document.createElement('img');
+    img.src = fileUrl(p);
+    img.loading = 'lazy';
+    img.alt = '';
+    img.dataset.path = p;
+    img.classList.toggle('sel', p === editPath);
+    img.onclick = () => pickForEdit(p);
+    $('recent').appendChild(img);
+  });
+}
+
+$('reload').onclick = loadRecent;
+
+$('editgo').onclick = async () => {
+  const instruction = $('instr').value.trim();
+  if (!editPath) { alert('編集する画像を選んでください'); return; }
+  if (!instruction) { alert('修正の指示を入力してください'); return; }
+
+  $('editgo').disabled = true;
+  $('editgo').textContent = '編集中…';
+  $('eout').innerHTML = '';
+  $('ebar').style.width = '0';
+
+  const r = await fetch('reina/run', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      mode: 'edit', image: editPath, instruction,
+      raw: $('raw').checked, repeat: $('erepeat').value, seed: $('eseed').value,
+    }),
+  }).then((r) => r.json());
+
+  if (r.error) {
+    $('editgo').disabled = false;
+    $('editgo').textContent = '編集する';
+    $('elog').innerHTML = `<div class="err">${r.error}</div>`;
+    return;
+  }
+  watch(r.id, {
+    bar: $('ebar'), log: $('elog'), out: $('eout'), btn: $('editgo'), idle: '編集する',
+    onDone: loadRecent,
+  });
+};
+
+// -- 生成 --
 $('go').onclick = async () => {
   $('go').disabled = true;
   $('go').textContent = '生成中…';
@@ -206,7 +322,13 @@ $('go').onclick = async () => {
   }).then((r) => r.json());
 
   runId = r.id;
-  timer = setInterval(poll, 1000);
+  watch(runId, {
+    bar: $('bar'), log: $('log'), out: $('out'), btn: $('go'), idle: '生成する',
+    onDone: (s) => {
+      if (s.returncode === 0 && s.images.length) $('dl').disabled = false;
+      loadRecent();
+    },
+  });
 };
 
 $('upbtn').onclick = async () => {
@@ -245,6 +367,7 @@ $('dl').onclick = async () => {
 };
 
 load();
+loadRecent();
 </script>
 </body>
 </html>
