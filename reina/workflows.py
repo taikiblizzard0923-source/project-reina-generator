@@ -159,12 +159,23 @@ class WorkflowBuilder:
         reference_images: list[str],
         negative: str = "",
         encoder_class: str = EDIT_ENCODER_CANDIDATES[0],
+        use_reference_vae: bool = True,
         **overrides: Any,
     ) -> Graph:
         """参照画像を条件に画像を生成する。
 
         reference_images は ComfyUI の input/ 配下の名前
         (ComfyClient.upload_image の戻り値) を渡す。
+
+        use_reference_vae: TextEncodeQwenImage21 に vae を渡すか。
+        渡すと画像を reference_latents としてVAEエンコードし、そちらを
+        本命の同一性経路として使う（vision-language 側の画像トークンは
+        使われなくなる: ノード実装が keep_vision=(ref_latents が空) を見る
+        ため）。GGUF ローダがこの Qwen-Image 2.1 の reference_latents 経路
+        に対応していないと、画像が黙って無視され「参照が一切効かない」
+        症状になりうる。False にすると vae を渡さず、代わりに
+        vision-language の画像トークン経路（古くからある、モデル側の
+        対応状況に依存しにくい経路）で同一性を伝える。
         """
         if not reference_images:
             raise ValueError("参照画像が1枚以上必要です")
@@ -205,10 +216,11 @@ class WorkflowBuilder:
                 "clip": clip_ref,
                 "prompt": prompt,
                 "negative_prompt": negative,
-                "vae": vae_ref,
                 "resolution": int(self.defaults.get("reference_resolution", 1024)),
                 "images": images,
             }
+            if use_reference_vae:
+                inputs["vae"] = vae_ref
             graph["10"] = {"class_type": encoder_class, "inputs": inputs}
             positive_out, negative_out = ["10", 0], ["10", 1]
         else:

@@ -385,7 +385,9 @@ def _run_jobs(
             )
             if reference_mode:
                 graph = builder.reference_to_image(
-                    prompt, uploaded, negative=negative, encoder_class=encoder, **params
+                    prompt, uploaded, negative=negative, encoder_class=encoder,
+                    use_reference_vae=not getattr(args, "no_reference_vae", False),
+                    **params,
                 )
             else:
                 graph = builder.text_to_image(prompt, negative=negative, **params)
@@ -557,6 +559,14 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         help="参照画像のポーズ・構図も引き継ぐ（既定は顔だけ引き継ぎ、構図は自由）",
     )
     parser.add_argument("--dry-run", action="store_true", help="送信せずワークフローJSONを表示")
+    parser.add_argument(
+        "--no-reference-vae",
+        action="store_true",
+        dest="no_reference_vae",
+        help="診断用: 参照画像をVAE経由(reference_latents)で渡すのをやめ、"
+             "vision-language の画像トークン経路のみで同一性を伝える。"
+             "GGUFローダがreference_latentsに対応していない疑いがあるときに試す",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
