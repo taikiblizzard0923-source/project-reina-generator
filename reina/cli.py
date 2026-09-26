@@ -530,8 +530,9 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("-o", "--out", help="出力ディレクトリ（既定: output/）")
     parser.add_argument("--negative", help="ネガティブプロンプトに追記")
     parser.add_argument(
-        "--lora-strength", type=float, dest="lora_strength",
-        help="config.yaml に登録された全 LoRA の強度を今回だけ上書き（0 で LoRA 無効化と同等）",
+        "--lora-strength", type=float, dest="lora_strength", default=0.0,
+        help="config.yaml に登録された全 LoRA の強度を今回だけ上書き（既定 0 = LoRA 無効。"
+             "config.yaml の強度をそのまま使うには --lora-strength を明示的に指定）",
     )
     parser.add_argument(
         "--style", help="character.yaml の style を今回だけ上書き（空文字で無効化）"
