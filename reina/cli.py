@@ -27,7 +27,13 @@ from .prompts import (
     scene_overrides,
 )
 from .video import VideoWorkflowBuilder, frame_count, reference_prompt, video_size
-from .workflows import COMBINED_ENCODERS, EDIT_ENCODER_CANDIDATES, WorkflowBuilder, random_seed
+from .workflows import (
+    COMBINED_ENCODERS,
+    EDIT_ENCODER_CANDIDATES,
+    IMAGE_EDIT_ENCODER,
+    WorkflowBuilder,
+    random_seed,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -541,12 +547,11 @@ def cmd_edit(args: argparse.Namespace) -> int:
     loras = [dict(l, strength=args.lora_strength) for l in cfg.loras]
     builder = WorkflowBuilder(cfg.models, cfg.defaults, loras)
 
+    encoder = args.encoder or IMAGE_EDIT_ENCODER
     if args.dry_run:
         uploaded = [Path(p).name for p in paths]
-        encoder = args.encoder or EDIT_ENCODER_CANDIDATES[0]
     else:
         uploaded = [client.upload_image(p) for p in paths]
-        encoder = _pick_encoder(client, args.encoder)
 
     prompt = args.instruction if args.raw else build_edit_prompt(
         args.instruction,

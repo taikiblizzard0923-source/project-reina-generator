@@ -21,14 +21,17 @@ Graph = dict[str, dict[str, Any]]
 # 別々に2回呼ぶ。各画像に "Picture N:" のラベルが付く。
 # TextEncodeQwenImage21 は Qwen-Image 2.1 用の新ノード（ComfyUI v0.37.0〜）で、
 # 1回の呼び出しで positive/negative 両方を出し、参照画像は最大16枚、ラベルは <imageN>。
-# 21 で別人になったのは、画像を入れ子の dict で送っていてノードに1枚も届いていなかった
-# ため（autogrow_inputs 参照）。修正後の 21 はまだ実機で比べていないので、本人になると
-# 確認済みの EditPlus を優先している。4枚以上使うときは --encoder TextEncodeQwenImage21。
+# 21 で一時「別人になる」と判断したのは、画像を入れ子の dict で送っていてノードに1枚も
+# 届いていなかったため（autogrow_inputs 参照）。修正後は同じシード・同じ顔写真3枚で
+# EditPlus とほぼ同じ結果になることを実機で確認したので、16枚まで使える 21 を優先する。
 EDIT_ENCODER_CANDIDATES = (
-    "TextEncodeQwenImageEditPlus",
     "TextEncodeQwenImage21",
+    "TextEncodeQwenImageEditPlus",
     "TextEncodeQwenImageEdit",
 )
+
+# edit（生成済み画像の修正）は EditPlus で denoise や定型文を詰めたので、そちらを使う
+IMAGE_EDIT_ENCODER = "TextEncodeQwenImageEditPlus"
 
 # 1ノードで positive/negative を同時に出すタイプ（画像入力名も image_1 形式）
 COMBINED_ENCODERS = ("TextEncodeQwenImage21",)

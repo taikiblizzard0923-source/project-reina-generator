@@ -264,15 +264,12 @@ python -m reina generate "relaxing at home in the afternoon" \
 
 | エンコーダ | 枚数 | 呼び方 |
 |---|---|---|
-| `TextEncodeQwenImageEditPlus`（既定） | 3枚まで | `Picture 1`, `Picture 2` … |
-| `TextEncodeQwenImage21` | 16枚まで | 2枚以上は `<image1>` `<image2>` …、1枚なら `the image` |
+| `TextEncodeQwenImage21`（既定） | 16枚まで | 2枚以上は `<image1>` `<image2>` …、1枚なら `the image` |
+| `TextEncodeQwenImageEditPlus` | 3枚まで | `Picture 1`, `Picture 2` … |
 
 どちらも "images 1 to 3" のような範囲指定は使いません。
-
-既定は `TextEncodeQwenImageEditPlus` です。UC GGUF（パッチした ComfyUI-GGUF）の構成では、
-同じシード・同じ参照画像でも `TextEncodeQwenImage21` だと別人になり、EditPlus だと本人に
-なることを確認しています。上の例のように4枚以上渡すときは `--encoder TextEncodeQwenImage21`
-を付けるか、人物の3枚をコラージュ（上記）で1枚にまとめてください。
+同じシード・同じ顔写真3枚で、2つのエンコーダはほぼ同じ結果になることを確認しています。
+`edit`（生成済み画像の修正）だけは、調整を詰めた `TextEncodeQwenImageEditPlus` を使います。
 
 ### 3-2. シーンを一括生成
 
