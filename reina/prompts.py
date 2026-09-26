@@ -188,6 +188,11 @@ def build_prompt(
             f"Take a completely new photograph of the person shown in {person_ref}: "
             f"{scene.prompt.strip().rstrip('.')}."
         )
+        # 参照写真の服がそのまま出やすい（全身写真のニットのワンピースが、水着を指定しても残った）
+        sentences.append(
+            "The person's clothing and surroundings come only from this description; "
+            "the clothes worn in the reference photos must not appear."
+        )
 
     if identity_count > 1:
         sentences.append(
