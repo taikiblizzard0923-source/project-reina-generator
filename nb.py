@@ -88,6 +88,20 @@ def show(n: int = 1) -> list[str]:
     return picked
 
 
+BOOL_FLAGS = ("keep_pose", "no_reference_vae", "dry_run")
+
+
+def _pop_flags(opts: dict, args: list[str], names: tuple[str, ...] = BOOL_FLAGS) -> None:
+    """opts から store_true 系のCLIフラグを取り出し、値無しで args に足す。
+
+    --dry-run のようなフラグは argparse 側が値を取らないので、他のオプションと
+    同じく f"--{key} {value}" 形式で渡すと "unrecognized arguments" で弾かれる。
+    """
+    for name in names:
+        if opts.pop(name, False):
+            args.append(f"--{name.replace('_', '-')}")
+
+
 def _run(args: list[str], expect: int) -> bool:
     """CLI を実行し、進捗を流しながら、1枚保存されるたびにその場で表示する。
 
@@ -343,10 +357,7 @@ def gen(
     """
     args = ["generate", prompt, "--name", name, "--repeat", str(n)]
     args += _reference_args(ref, scene_ref)
-    if opts.pop("keep_pose", False):
-        args.append("--keep-pose")
-    if opts.pop("no_reference_vae", False):
-        args.append("--no-reference-vae")
+    _pop_flags(opts, args)
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     return _run(args, n)
@@ -369,10 +380,7 @@ def batch(
     if scenes:
         args += ["--scenes", scenes]
     args += _reference_args(ref, scene_ref)
-    if opts.pop("keep_pose", False):
-        args.append("--keep-pose")
-    if opts.pop("no_reference_vae", False):
-        args.append("--no-reference-vae")
+    _pop_flags(opts, args)
     if only:
         args += ["--only", *only]
     for key, value in opts.items():
@@ -402,10 +410,7 @@ def mix(
     args += _reference_args(ref, scene_ref)
     if mix_seed is not None:
         args += ["--mix-seed", str(mix_seed)]
-    if opts.pop("keep_pose", False):
-        args.append("--keep-pose")
-    if opts.pop("no_reference_vae", False):
-        args.append("--no-reference-vae")
+    _pop_flags(opts, args)
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     return _run(args, limit * n)
