@@ -557,6 +557,8 @@ def cmd_edit(args: argparse.Namespace) -> int:
     failures = 0
     for take in range(args.repeat):
         params = _cli_overrides(args)
+        # denoise=1.0 だと元画像を完全にノイズに戻して描き直すため、指示と関係ない所まで変わる
+        params.setdefault("denoise", float(cfg.defaults.get("edit_denoise", 0.7)))
         params["seed"] = args.seed + take if args.seed is not None else random_seed()
         params["prefix"] = "reina/edit"
         graph = builder.reference_to_image(
