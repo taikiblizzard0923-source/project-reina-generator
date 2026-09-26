@@ -25,6 +25,10 @@ REQUIRED = {
         "megapixels": [["FLOAT"], {"default": 1.0}],
         "resolution_steps": [["INT"], {"default": 64}],
     },
+    "KSampler": {
+        "sampler_name": [["euler", "er_sde", "dpmpp_2m"], {}],
+        "scheduler": [["simple", "beta", "karras"], {}],
+    },
 }
 OPTIONS = {
     "UnetLoaderGGUF": ("unet_name", ["qwen-image-2.1-Q4_K_M.gguf"]),

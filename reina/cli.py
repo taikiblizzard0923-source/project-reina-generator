@@ -264,6 +264,17 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 if lora_names:
                     _log(f"     候補: {', '.join(sorted(lora_names)[:12])}")
 
+    for field, value in (("sampler_name", cfg.defaults["sampler"]), ("scheduler", cfg.defaults["scheduler"])):
+        options = client.node_options("KSampler", field)
+        if not options:
+            continue  # KSampler 自体が無ければ上のチェックで既に [NG] 済み
+        if value in options:
+            _log(f"[OK] {field}: {value}")
+        else:
+            ok = False
+            _log(f"[NG] {field}: '{value}' はこの KSampler にありません")
+            _log(f"     候補: {', '.join(options)}")
+
     encoder = next((c for c in EDIT_ENCODER_CANDIDATES if client.has_node(c)), None)
     if encoder:
         _log(f"[OK] 参照画像エンコーダ: {encoder}")

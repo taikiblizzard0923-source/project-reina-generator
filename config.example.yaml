@@ -40,11 +40,12 @@ models:
 defaults:
   width: 832
   height: 1216
-  steps: 20
+  steps: 25
   cfg: 2.0        # 高いほど彩度とコントラストが上がり AI 感が出る。1.5〜3.0 で調整
   shift: 3.1
-  sampler: "euler"
-  scheduler: "simple"
+  # er_sde / beta が実機の KSampler で使えるか要確認（doctor 参照）
+  sampler: "er_sde"
+  scheduler: "beta"
   denoise: 1.0
   batch_size: 1
   # 参照画像モード時、参照画像をこの総ピクセル数(メガピクセル)にリサイズ
