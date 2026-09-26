@@ -140,8 +140,8 @@ def _run(args: list[str], expect: int) -> bool:
     if code != 0:
         print(f"\n[失敗] 終了コード {code}")
         return False
-    if not shown:
-        # 保存行を拾えなかったときの保険
+    if not shown and "--dry-run" not in args:
+        # 保存行を拾えなかったときの保険（dry-run は何も保存しないので、過去の画像を出さない）
         show(expect)
     return True
 
