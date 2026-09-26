@@ -195,18 +195,26 @@ bash go.sh restore <file>    # 新しい Pod で戻す
 
 ### 3-1. 参照画像から生成する（メイン用途）
 
-自分の写真を `input/` に置いて `-r` で渡します（正面・横顔・全身など角度違いを入れると同一性が安定します）。
-受け付ける枚数はモデルとノードの版によるので、多すぎる場合は実行時に上限を知らせます。
+自分の写真を `input/` に置いて `-r` で渡します。**顔の写真（正面と横顔など）だけ**を渡してください。
+参照写真に写っている服は、文章で止めても生成画像に移りやすく、全身写真を入れると
+指定した服（水着など）にならずに参照写真の服のままになります。体形は character.yaml の
+details で指定します。受け付ける枚数はノードによるので、多すぎる場合は実行時に上限を知らせます。
+
+シーンの服装は具体的に書きます（`in a swimsuit` より `wearing a black bikini`）。
+ぼかした書き方だと参照写真の服に負けます。
 
 ```bash
 # 1枚だけ試す
 python -m reina generate "walking on a Tokyo street at night, black leather jacket" \
   -r input/me_front.jpg
 
-# 角度違いを3枚渡す
+# 正面と横顔の2枚を渡す
 python -m reina generate "sitting in a cafe by the window, beige knit cardigan" \
-  -r input/me_front.jpg -r input/me_side.jpg -r input/me_full.jpg
+  -r input/me_front.jpg -r input/me_side.jpg
 ```
+
+`--no-reference-vae` を付けると参照写真の細部を渡さなくなり服は移りにくくなりますが、
+顔も別人になります。通常は付けないでください。
 
 ### 参照画像の枚数が足りないとき
 
