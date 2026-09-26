@@ -242,11 +242,15 @@ python -m reina generate "relaxing at home in the afternoon" \
 説明はファイル名から作られます（`room.jpg` → `the room`）。
 `パス=説明` の形で明示もできます。生成される指示文は次のようになります：
 
-> \<image1\>, \<image2\> and \<image3\> are photos of the same person from different angles.
+> Take a completely new photograph of the person shown in \<image1\>, \<image2\> and \<image3\>:
+> relaxing at home in the afternoon. \<image1\>, \<image2\> and \<image3\> are photos of one and
+> the same person from different angles. This person appears only once in the new photograph ...
 > \<image4\> shows the room. \<image5\> shows her golden retriever. Use \<image1\>, \<image2\>
-> and \<image3\> only for the identity of the person ... Do not copy anything else from
-> \<image1\>, \<image2\> and \<image3\> ... Include the room and her golden retriever in the
-> photograph, matching how they look in their own reference images.
+> and \<image3\> only for the identity of the person ... Include the room and her golden
+> retriever in the photograph, matching how they look in their own reference images.
+
+シーンの説明は冒頭に入ります。末尾に置くと参照画像についての注意書きに埋もれて無視され、
+参照写真を並べただけの絵になりやすいためです。シーンは英語で書くほうが確実に効きます。
 
 画像の呼び方は、エンコーダが各画像の直前に入れるラベルに合わせて切り替わります。
 

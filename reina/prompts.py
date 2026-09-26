@@ -176,12 +176,30 @@ def build_prompt(
     identity_refs = [ref(i) for i in range(1, identity_count + 1)]
     if identity_count > 1:
         person_ref = _join(identity_refs)
-        sentences.append(f"{person_ref} are photos of the same person from different angles.")
     elif identity_count == 1:
         person_ref = identity_refs[0]
-        sentences.append(f"{_capitalize(person_ref)} shows the person.")
     else:
         person_ref = "the reference image"
+
+    # 何を撮るかを先頭に置く。末尾に置くと参照画像についての長い注意書きに埋もれて、
+    # シーンが無視され参照写真を並べただけの絵になった
+    if not keep_pose:
+        sentences.append(
+            f"Take a completely new photograph of the person shown in {person_ref}: "
+            f"{scene.prompt.strip().rstrip('.')}."
+        )
+
+    if identity_count > 1:
+        sentences.append(
+            f"{person_ref} are photos of one and the same person from different angles. "
+            "This person appears only once in the new photograph; "
+            "anyone else in the scene is a different person."
+        )
+    elif identity_count == 1:
+        sentences.append(
+            f"{_capitalize(person_ref)} shows the person, who appears only once "
+            "in the new photograph."
+        )
     for offset, label in enumerate(scene_labels, start=identity_count + 1):
         sentences.append(f"{_capitalize(ref(offset))} shows {label}.")
 
@@ -218,8 +236,8 @@ def build_prompt(
         sentences.append(f"Change the scene to: {scene.prompt}.")
     else:
         sentences.append(
-            "Take a completely new photograph of this person, with a different pose, "
-            f"a different head angle and a different hairstyle: {scene.prompt}."
+            "Give the person a different pose, a different head angle and a different "
+            "hairstyle from the reference photos."
         )
 
     tail = ", ".join(p for p in (character.style, character.quality) if p)
