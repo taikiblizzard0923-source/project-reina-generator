@@ -176,15 +176,11 @@ class WorkflowBuilder:
         reference_images は ComfyUI の input/ 配下の名前
         (ComfyClient.upload_image の戻り値) を渡す。
 
-        use_reference_vae: TextEncodeQwenImage21 に vae を渡すか。
-        渡すと画像を reference_latents としてVAEエンコードし、そちらを
-        本命の同一性経路として使う（vision-language 側の画像トークンは
-        使われなくなる: ノード実装が keep_vision=(ref_latents が空) を見る
-        ため）。GGUF ローダがこの Qwen-Image 2.1 の reference_latents 経路
-        に対応していないと、画像が黙って無視され「参照が一切効かない」
-        症状になりうる。False にすると vae を渡さず、代わりに
-        vision-language の画像トークン経路（古くからある、モデル側の
-        対応状況に依存しにくい経路）で同一性を伝える。
+        use_reference_vae: エンコーダに vae を渡すか。渡すと各参照画像が
+        reference_latents として VAE エンコードされ、服や背景まで画素レベルで
+        引き継がれやすい。False にすると vision-language の画像トークンだけで
+        伝える（TextEncodeQwenImage21 は ref_latents が空のときだけ画像トークンを
+        残すので、21 では False にしないと画像トークン経路が使われない）。
         """
         if not reference_images:
             raise ValueError("参照画像が1枚以上必要です")
@@ -233,8 +229,11 @@ class WorkflowBuilder:
             graph["10"] = {"class_type": encoder_class, "inputs": inputs}
             positive_out, negative_out = ["10", 0], ["10", 1]
         else:
-            pos_inputs: dict[str, Any] = {"clip": clip_ref, "prompt": prompt, "vae": vae_ref}
-            neg_inputs: dict[str, Any] = {"clip": clip_ref, "prompt": negative, "vae": vae_ref}
+            pos_inputs: dict[str, Any] = {"clip": clip_ref, "prompt": prompt}
+            neg_inputs: dict[str, Any] = {"clip": clip_ref, "prompt": negative}
+            if use_reference_vae:
+                pos_inputs["vae"] = vae_ref
+                neg_inputs["vae"] = vae_ref
             for index, ref in enumerate(scaled_refs):
                 pos_inputs[f"image{index + 1}"] = ref
                 neg_inputs[f"image{index + 1}"] = ref
