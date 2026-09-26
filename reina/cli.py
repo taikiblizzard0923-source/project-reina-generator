@@ -309,7 +309,13 @@ def _run_jobs(
     scene_refs = [_scene_ref(v) for v in (getattr(args, "scene_ref", None) or [])]
     cfg = load_config(args.config)
     client = _make_client(cfg, args)
-    builder = WorkflowBuilder(cfg.models, cfg.defaults, cfg.loras)
+    loras = cfg.loras
+    lora_strength = getattr(args, "lora_strength", None)
+    if lora_strength is not None:
+        # 今回の実行だけ、全 LoRA の強度をこの値で上書きする
+        # （config.yaml は変更しない。0 を指定すれば LoRA 無しと比較できる）
+        loras = [dict(l, strength=lora_strength) for l in cfg.loras]
+    builder = WorkflowBuilder(cfg.models, cfg.defaults, loras)
 
     all_paths = list(reference_paths) + [p for p, _ in scene_refs]
     reference_mode = bool(all_paths)
@@ -512,6 +518,10 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("-o", "--out", help="出力ディレクトリ（既定: output/）")
     parser.add_argument("--negative", help="ネガティブプロンプトに追記")
+    parser.add_argument(
+        "--lora-strength", type=float, dest="lora_strength",
+        help="config.yaml に登録された全 LoRA の強度を今回だけ上書き（0 で LoRA 無効化と同等）",
+    )
     parser.add_argument(
         "--style", help="character.yaml の style を今回だけ上書き（空文字で無効化）"
     )

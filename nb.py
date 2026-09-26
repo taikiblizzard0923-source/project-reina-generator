@@ -20,6 +20,9 @@
     bench()                                          # 速度を測る（設定比較用）
     ref_limit()                                      # 参照画像の上限を確認
     add_lora("https://huggingface.co/xxx/yyy/resolve/main/reina_v1.safetensors")  # LoRA追加
+    set_lora_strength(0.5)                            # 登録済みLoRAの強度を恒久的に変更
+    gen("...", ref=R, lora_strength=0.5)              # 今回の生成だけ強度を変更
+    compare("...", ref=R, lora_strength=[0.0, 0.5, 0.85])  # 強度違いを並べて比較
 
     # シーン定義を渡して一括生成 → ZIP にまとめてダウンロード
     pack(scenes="beach", ref=["input/face.png", "input/side.png", "input/body.png"])
@@ -260,6 +263,39 @@ def add_lora(url: str, name: str | None = None, strength: float = 0.85, replace:
     cmd = f"cd {shlex.quote(ROOT)} && {shlex.join([sys.executable, *args])}"
     proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     print((proc.stdout + proc.stderr).strip())
+
+
+def set_lora_strength(strength: float, name: str | None = None) -> None:
+    """config.yaml に登録済みの LoRA の強度を、ダウンロードし直さずに変更する。
+
+    name を省略すると登録済み全 LoRA に適用。以降ずっと（Pod を作り直すまで）
+    この強度が使われる。1回の生成だけ変えたいなら gen(..., lora_strength=x) を使う。
+    """
+    config_path = os.path.join(ROOT, "config.yaml")
+    if not os.path.exists(config_path):
+        print("config.yaml がありません。まず add_lora() で LoRA を追加してください")
+        return
+    import yaml
+
+    with open(config_path, encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) or {}
+    loras = data.get("loras") or []
+    if not loras:
+        print("登録済みの LoRA がありません（add_lora() で追加してください）")
+        return
+
+    changed = []
+    for lora in loras:
+        if name is None or lora.get("name") == name:
+            lora["strength"] = strength
+            changed.append(lora["name"])
+    if not changed:
+        print(f"'{name}' という LoRA は登録されていません。登録済み: {[l.get('name') for l in loras]}")
+        return
+
+    with open(config_path, "w", encoding="utf-8") as fh:
+        yaml.safe_dump(data, fh, allow_unicode=True, sort_keys=False)
+    print(f"strength={strength} に更新: {', '.join(changed)}")
 
 
 def ref_limit(node: str | None = None) -> int:
