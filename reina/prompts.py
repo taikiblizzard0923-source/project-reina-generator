@@ -110,6 +110,16 @@ def combine_axes(
     return _gen()
 
 
+def _join(items: list[str]) -> str:
+    if len(items) < 3:
+        return " and ".join(items)
+    return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _capitalize(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
 def build_prompt(
     character: Character,
     scene: Scene,
@@ -134,33 +144,41 @@ def build_prompt(
 
     scene_labels = scene_labels or []
     identity_count = max(identity_count, 0)
+    total = identity_count + len(scene_labels)
     sentences: list[str] = []
 
-    # どの画像が何なのか
+    # Qwen-Image 2.1 の規約: 2枚以上なら各画像を <image1> <image2> ... で個別に指す
+    # （TextEncodeQwenImage21 が各画像の直前に同じタグを差し込む）。
+    # "images 1 to 2" のような範囲指定や "the first image" などの自然文は不可。
+    # 1枚だけのときはタグを使わず "the image" と書く。
+    def ref(index: int) -> str:
+        return f"<image{index}>" if total > 1 else "the image"
+
+    identity_refs = [ref(i) for i in range(1, identity_count + 1)]
     if identity_count > 1:
-        person_ref = f"Images 1 to {identity_count}"
-        sentences.append(f"{person_ref} show the same person from different angles.")
+        person_ref = _join(identity_refs)
+        sentences.append(f"{person_ref} are photos of the same person from different angles.")
     elif identity_count == 1:
-        person_ref = "Image 1"
-        sentences.append("Image 1 shows the person.")
+        person_ref = identity_refs[0]
+        sentences.append(f"{_capitalize(person_ref)} shows the person.")
     else:
-        person_ref = "The reference image"
-    for offset, label in enumerate(scene_labels, start=max(identity_count, 1) + 1):
-        sentences.append(f"Image {offset} shows {label}.")
+        person_ref = "the reference image"
+    for offset, label in enumerate(scene_labels, start=identity_count + 1):
+        sentences.append(f"{_capitalize(ref(offset))} shows {label}.")
 
     if keep_pose:
         sentences.append(
-            f"Keep the person exactly as in {person_ref.lower()}: "
+            f"Keep the person exactly as in {person_ref}: "
             "same face, same identity, same pose and same framing."
         )
     else:
         sentences.append(
-            f"Use {person_ref.lower()} only for the identity of the person: "
+            f"Use {person_ref} only for the identity of the person: "
             "the same facial features, so that the person is recognisable "
             "as the same individual."
         )
         sentences.append(
-            f"Do not copy anything else from {person_ref.lower()} — "
+            f"Do not copy anything else from {person_ref} — "
             "not the pose, the head angle, the direction the person is facing, "
             "the gaze, the camera angle, the framing, the crop, the expression, "
             "the hairstyle, the hair length, the makeup, the clothing "
@@ -172,13 +190,8 @@ def build_prompt(
         sentences.append(f"Distinguishing features: {subject}.")
 
     if scene_labels:
-        listed = (
-            " and ".join(scene_labels)
-            if len(scene_labels) < 3
-            else ", ".join(scene_labels[:-1]) + " and " + scene_labels[-1]
-        )
         sentences.append(
-            f"Include {listed} in the photograph, "
+            f"Include {_join(scene_labels)} in the photograph, "
             "matching how they look in their own reference images."
         )
 

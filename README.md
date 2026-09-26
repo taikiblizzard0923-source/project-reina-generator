@@ -242,10 +242,15 @@ python -m reina generate "relaxing at home in the afternoon" \
 説明はファイル名から作られます（`room.jpg` → `the room`）。
 `パス=説明` の形で明示もできます。生成される指示文は次のようになります：
 
-> Images 1 to 3 show the same person from different angles. Image 4 shows the room.
-> Image 5 shows her golden retriever. Use images 1 to 3 only for the identity of the
-> person ... Do not copy anything else from images 1 to 3 ... Include the room and her
-> golden retriever in the photograph, matching how they look in their own reference images.
+> \<image1\>, \<image2\> and \<image3\> are photos of the same person from different angles.
+> \<image4\> shows the room. \<image5\> shows her golden retriever. Use \<image1\>, \<image2\>
+> and \<image3\> only for the identity of the person ... Do not copy anything else from
+> \<image1\>, \<image2\> and \<image3\> ... Include the room and her golden retriever in the
+> photograph, matching how they look in their own reference images.
+
+Qwen-Image 2.1 の規約どおり、2枚以上のときは各画像を `<image1>` `<image2>` … で個別に指します
+（エンコーダが各画像の直前に同じタグを入れるため）。"images 1 to 3" のような範囲指定や
+"the first image" のような言い方は使いません。1枚だけのときはタグを使わず "the image" です。
 
 ### 3-2. シーンを一括生成
 
