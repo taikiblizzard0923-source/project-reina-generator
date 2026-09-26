@@ -547,7 +547,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
                  f"-r は {capacity - 1} 枚までにしてください")
             return 1
 
-    prompt = build_edit_prompt(
+    prompt = args.instruction if args.raw else build_edit_prompt(
         args.instruction,
         identity_count=len(face_refs),
         picture_labels=encoder not in COMBINED_ENCODERS,
@@ -713,6 +713,10 @@ def build_parser() -> argparse.ArgumentParser:
     edit = sub.add_parser("edit", help="生成済みの画像に修正指示を与えて直す")
     edit.add_argument("instruction", help="修正の指示（例: 右手を自然な形に直して）")
     edit.add_argument("--image", help="修正する画像（省略時は output/ で最後に生成した画像）")
+    edit.add_argument(
+        "--raw", action="store_true",
+        help="指示文をそのままプロンプトにする（「それ以外は変えない」などの定型文を付けない）",
+    )
     _add_common(edit)
     edit.set_defaults(func=cmd_edit)
 

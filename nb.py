@@ -90,7 +90,7 @@ def show(n: int = 1) -> list[str]:
     return picked
 
 
-BOOL_FLAGS = ("keep_pose", "no_reference_vae", "dry_run")
+BOOL_FLAGS = ("keep_pose", "no_reference_vae", "dry_run", "raw")
 
 
 def _pop_flags(opts: dict, args: list[str], names: tuple[str, ...] = BOOL_FLAGS) -> None:
