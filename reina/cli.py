@@ -425,7 +425,7 @@ def _run_jobs(
                 "identity_images": len(reference_paths),
                 "scene_references": [{"path": p, "label": l} for p, l in scene_refs],
                 "models": cfg.models,
-                "loras": cfg.loras,
+                "loras": loras,
             }
             saved = _save(out_dir, stem, images, meta)
             for path in saved:
