@@ -38,7 +38,7 @@ DEFAULTS: dict[str, Any] = {
         "batch_size": 1,
         "reference_megapixels": 1.0,
         "reference_denoise": 1.0,
-        "edit_denoise": 0.7,
+        "edit_denoise": 1.0,
     },
     "loras": [],
 }

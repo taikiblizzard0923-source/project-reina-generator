@@ -132,31 +132,14 @@ def _image_ref(index: int, total: int, picture_labels: bool) -> str:
     return f"<image{index}>" if total > 1 else "the image"
 
 
-def build_edit_prompt(instruction: str, identity_count: int = 0, picture_labels: bool = False) -> str:
-    """生成済みの画像（1枚目）を指示どおりに直す指示文。
-
-    2枚目以降は顔の参照。編集を繰り返すと顔が少しずつ別人に寄っていくので、
-    参照写真を添えたときはそちらの顔に合わせるよう明示する。
-    """
-    total = 1 + max(identity_count, 0)
-    target = _image_ref(1, total, picture_labels)
-    sentences: list[str] = []
-    if identity_count > 0:
-        faces = _join([_image_ref(i, total, picture_labels) for i in range(2, total + 1)])
-        verb = "shows" if identity_count == 1 else "show"
-        sentences.append(
-            f"{faces} {verb} the same person as {target}. "
-            f"Keep the person's face exactly as in {faces}. "
-            f"Use {faces} only for the face: do not copy the pose, the body, the clothing, "
-            f"the framing or the background from {faces}. "
-            f"The output must keep the composition of {target}."
-        )
-    sentences.append(f"Edit {target}: {instruction.strip().rstrip('.')}.")
-    sentences.append(
+def build_edit_prompt(instruction: str, picture_labels: bool = False) -> str:
+    """生成済みの画像を指示どおりに直す指示文（渡す画像は修正対象の1枚だけ）。"""
+    target = _image_ref(1, 1, picture_labels)
+    return (
+        f"Edit {target}: {instruction.strip().rstrip('.')}. "
         f"Keep everything else in {target} unchanged: the person, the pose, "
         "the framing, the lighting and the background."
     )
-    return " ".join(sentences)
 
 
 def build_prompt(

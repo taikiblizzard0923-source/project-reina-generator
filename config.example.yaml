@@ -53,9 +53,9 @@ defaults:
   reference_megapixels: 1.0
   # 参照画像モードの denoise（低いほど参照に忠実）
   reference_denoise: 1.0
-  # edit（生成済み画像の修正）の denoise。低いほど指示した箇所以外が元画像のまま残るが、
-  # 大きな修正（足の本数など）は効きにくくなる
-  edit_denoise: 0.7
+  # edit（生成済み画像の修正）の denoise。1.0 でも元画像は参照として効くので構図は保たれる。
+  # 下げると指示が一部しか効かなくなる（0.85 で服の色が半端に変わった）
+  edit_denoise: 1.0
 
 # LoRA（任意）。顔の同一性を固めたい場合に使う
 loras: []

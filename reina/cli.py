@@ -526,10 +526,15 @@ def cmd_edit(args: argparse.Namespace) -> int:
     if not target.exists():
         _log(f"画像が見つかりません: {target}")
         return 1
+    if args.reference or args.scene_ref:
+        # 編集エンコーダは渡された画像のどれを直すかを取り違え、参照写真のほうを
+        # 編集した結果を返すことがある（実機で確認）ので、修正対象の1枚だけを渡す
+        _log("edit では -r / -s は使えません（参照写真のほうが編集されてしまうため）。"
+             "修正対象の画像だけで実行してください")
+        return 1
     _log(f"修正する画像: {target}")
 
-    face_refs = list(args.reference or [])
-    paths = [str(target), *face_refs]
+    paths = [str(target)]
     cfg = load_config(args.config)
     client = _make_client(cfg, args)
     loras = [dict(l, strength=args.lora_strength) for l in cfg.loras]
@@ -541,15 +546,9 @@ def cmd_edit(args: argparse.Namespace) -> int:
     else:
         uploaded = [client.upload_image(p) for p in paths]
         encoder = _pick_encoder(client, args.encoder)
-        capacity = len(client.image_input_names(encoder))
-        if capacity and len(uploaded) > capacity:
-            _log(f"画像は修正対象と顔の参照を合わせて {capacity} 枚までです（{encoder}）。"
-                 f"-r は {capacity - 1} 枚までにしてください")
-            return 1
 
     prompt = args.instruction if args.raw else build_edit_prompt(
         args.instruction,
-        identity_count=len(face_refs),
         picture_labels=encoder not in COMBINED_ENCODERS,
     )
     negative = build_negative(_resolve_character(args), args.negative or "")
@@ -557,8 +556,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
     failures = 0
     for take in range(args.repeat):
         params = _cli_overrides(args)
-        # denoise=1.0 だと元画像を完全にノイズに戻して描き直すため、指示と関係ない所まで変わる
-        params.setdefault("denoise", float(cfg.defaults.get("edit_denoise", 0.7)))
+        params.setdefault("denoise", float(cfg.defaults.get("edit_denoise", 1.0)))
         params["seed"] = args.seed + take if args.seed is not None else random_seed()
         params["prefix"] = "reina/edit"
         graph = builder.reference_to_image(
@@ -592,7 +590,6 @@ def cmd_edit(args: argparse.Namespace) -> int:
             "negative": negative,
             "params": effective,
             "reference_images": uploaded,
-            "identity_images": len(face_refs),
             "encoder": encoder,
             "models": cfg.models,
             "loras": loras,
