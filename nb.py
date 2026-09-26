@@ -10,6 +10,8 @@
         scene_ref=["input/room.jpg", "input/pet.jpg=her golden retriever"])
     gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
+    edit("右手を自然な形に直して")                    # 直前の画像を修正指示で直す
+    edit("服を白いシャツに", ref=["input/face.png"])  # 顔の参照を添えて直す
     compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])   # cfgだけ変えて比較
     compare("standing in a studio", ref=R, steps=[12, 20, 30])    # stepsだけ変えて比較
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
@@ -416,6 +418,31 @@ def mix(
     return _run(args, limit * n)
 
 
+def edit(
+    instruction: str,
+    image: str | None = None,
+    ref: str | list[str] | None = None,
+    n: int = 1,
+    **opts,
+) -> bool:
+    """生成済みの画像に修正指示を与えて直し、表示する。
+
+    image を省略すると、最後に生成した画像を直す。ref に顔の参照写真（2枚まで）を
+    渡すと、修正を重ねても顔が別人に寄りにくい。
+        edit("右手を自然な形に直して")
+        edit("服を白いシャツに変えて", ref=["input/face.png", "input/side.png"])
+        edit("背景を夜の街に", image="output/20260926-071346/shot_777.png")
+    """
+    args = ["edit", instruction, "--repeat", str(n)]
+    if image:
+        args += ["--image", image]
+    args += _reference_args(ref)
+    _pop_flags(opts, args)
+    for key, value in opts.items():
+        args += [f"--{key.replace('_', '-')}", str(value)]
+    return _run(args, n)
+
+
 def compare(prompt: str, ref=None, seed: int | None = None, label_fmt: str | None = None, **grid) -> None:
     """同じシード・プロンプトのまま、パラメータだけ変えて並べて比較する。
 
@@ -486,5 +513,6 @@ print(
     '  gen("プロンプト", ref="input/me.jpg")'
     '  /  batch(ref="input/me.jpg")'
     '  /  mix(ref="input/me.jpg", limit=12)'
+    '  /  edit("右手を直して")'
     '  /  pack(scenes="beach", ref=...)  /  show(4)  /  bench()  /  ref_limit()'
 )

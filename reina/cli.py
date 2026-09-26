@@ -17,6 +17,7 @@ from dataclasses import replace
 from .prompts import (
     Character,
     Scene,
+    build_edit_prompt,
     build_negative,
     build_prompt,
     combine_axes,
@@ -511,6 +512,97 @@ def cmd_mix(args: argparse.Namespace) -> int:
     return _run_jobs(args, character, scenes, args.reference or [])
 
 
+def _latest_output() -> Path | None:
+    images = sorted((ROOT / "output").glob("*/*.png"), key=lambda p: p.stat().st_mtime)
+    return images[-1] if images else None
+
+
+def cmd_edit(args: argparse.Namespace) -> int:
+    """生成済みの画像に修正指示を与えて直す。--image 省略時は最後に生成した画像。"""
+    target = Path(args.image) if args.image else _latest_output()
+    if target is None:
+        _log("修正する画像がありません。--image で指定するか、先に generate してください")
+        return 1
+    if not target.exists():
+        _log(f"画像が見つかりません: {target}")
+        return 1
+    _log(f"修正する画像: {target}")
+
+    face_refs = list(args.reference or [])
+    paths = [str(target), *face_refs]
+    cfg = load_config(args.config)
+    client = _make_client(cfg, args)
+    loras = [dict(l, strength=args.lora_strength) for l in cfg.loras]
+    builder = WorkflowBuilder(cfg.models, cfg.defaults, loras)
+
+    if args.dry_run:
+        uploaded = [Path(p).name for p in paths]
+        encoder = args.encoder or EDIT_ENCODER_CANDIDATES[0]
+    else:
+        uploaded = [client.upload_image(p) for p in paths]
+        encoder = _pick_encoder(client, args.encoder)
+        capacity = len(client.image_input_names(encoder))
+        if capacity and len(uploaded) > capacity:
+            _log(f"画像は修正対象と顔の参照を合わせて {capacity} 枚までです（{encoder}）。"
+                 f"-r は {capacity - 1} 枚までにしてください")
+            return 1
+
+    prompt = build_edit_prompt(
+        args.instruction,
+        identity_count=len(face_refs),
+        picture_labels=encoder not in COMBINED_ENCODERS,
+    )
+    negative = build_negative(_resolve_character(args), args.negative or "")
+    out_dir = _out_dir(args)
+    failures = 0
+    for take in range(args.repeat):
+        params = _cli_overrides(args)
+        params["seed"] = args.seed + take if args.seed is not None else random_seed()
+        params["prefix"] = "reina/edit"
+        graph = builder.reference_to_image(
+            prompt, uploaded, negative=negative, encoder_class=encoder,
+            use_reference_vae=not args.no_reference_vae,
+            init_from_first=True,
+            **params,
+        )
+        stem = f"edit_{params['seed']}"
+        if args.dry_run:
+            print(json.dumps({"stem": stem, "prompt": prompt, "workflow": graph}, ensure_ascii=False, indent=2))
+            continue
+        client.fill_missing_inputs(graph)
+        _log(f"[{take + 1}/{args.repeat}] edit seed={params['seed']}")
+        started = time.time()
+        try:
+            images = client.run(graph, on_progress=_progress("edit", started))
+        except ComfyError as exc:
+            failures += 1
+            print("", file=sys.stderr)
+            _log(f"  [NG] {time.time() - started:.1f}s で失敗: {exc}")
+            continue
+        print("", file=sys.stderr)
+        _log(f"  {time.time() - started:.1f}s で完了")
+        effective = {**cfg.defaults, **params}
+        effective.pop("prefix", None)
+        meta = {
+            "edit_of": str(target),
+            "instruction": args.instruction,
+            "prompt": prompt,
+            "negative": negative,
+            "params": effective,
+            "reference_images": uploaded,
+            "identity_images": len(face_refs),
+            "encoder": encoder,
+            "models": cfg.models,
+            "loras": loras,
+        }
+        for path in _save(out_dir, stem, images, meta):
+            _log(f"  -> {path}")
+
+    if not args.dry_run:
+        _log(f"完了: {out_dir} (失敗 {failures}/{args.repeat})")
+    return 1 if failures else 0
+
+
 # -- パーサ -----------------------------------------------------------------
 
 
@@ -615,6 +707,12 @@ def build_parser() -> argparse.ArgumentParser:
     mix.add_argument("--mix-seed", type=int, help="組み合わせシャッフルのシード")
     _add_common(mix)
     mix.set_defaults(func=cmd_mix)
+
+    edit = sub.add_parser("edit", help="生成済みの画像に修正指示を与えて直す")
+    edit.add_argument("instruction", help="修正の指示（例: 右手を自然な形に直して）")
+    edit.add_argument("--image", help="修正する画像（省略時は output/ で最後に生成した画像）")
+    _add_common(edit)
+    edit.set_defaults(func=cmd_edit)
 
     return parser
 

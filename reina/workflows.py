@@ -168,6 +168,7 @@ class WorkflowBuilder:
         negative: str = "",
         encoder_class: str = EDIT_ENCODER_CANDIDATES[0],
         use_reference_vae: bool = True,
+        init_from_first: bool = False,
         **overrides: Any,
     ) -> Graph:
         """参照画像を条件に画像を生成する。
@@ -241,8 +242,10 @@ class WorkflowBuilder:
             graph["11"] = {"class_type": encoder_class, "inputs": neg_inputs}
             positive_out, negative_out = ["10", 0], ["11", 0]
 
-        # 1枚目の参照画像を初期 latent にする（構図を引き継ぐ）
-        if params["denoise"] < 1.0:
+        # 1枚目の参照画像を初期 latent にする（構図を引き継ぐ）。
+        # 画像編集（init_from_first）では denoise=1.0 でもこちら: 出力が元画像と同じ
+        # サイズになり、中身は reference_latents 経由で元画像を踏襲する（公式の編集ワークフローと同じ形）
+        if params["denoise"] < 1.0 or init_from_first:
             graph["12"] = {
                 "class_type": "VAEEncode",
                 "inputs": {"pixels": scaled_refs[0], "vae": vae_ref},

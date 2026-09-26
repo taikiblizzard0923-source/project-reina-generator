@@ -120,6 +120,42 @@ def _capitalize(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
+def _image_ref(index: int, total: int, picture_labels: bool) -> str:
+    """プロンプト中での画像の呼び方。エンコーダが各画像の直前に差し込むラベルに合わせる。
+
+    picture_labels=True（TextEncodeQwenImageEditPlus）: 枚数によらず "Picture N"。
+    False（TextEncodeQwenImage21）: Qwen-Image 2.1 の規約で、2枚以上なら <imageN>、
+    1枚だけならタグを使わず "the image"。どちらも範囲指定（"images 1 to 2"）は不可。
+    """
+    if picture_labels:
+        return f"Picture {index}"
+    return f"<image{index}>" if total > 1 else "the image"
+
+
+def build_edit_prompt(instruction: str, identity_count: int = 0, picture_labels: bool = False) -> str:
+    """生成済みの画像（1枚目）を指示どおりに直す指示文。
+
+    2枚目以降は顔の参照。編集を繰り返すと顔が少しずつ別人に寄っていくので、
+    参照写真を添えたときはそちらの顔に合わせるよう明示する。
+    """
+    total = 1 + max(identity_count, 0)
+    target = _image_ref(1, total, picture_labels)
+    sentences: list[str] = []
+    if identity_count > 0:
+        faces = _join([_image_ref(i, total, picture_labels) for i in range(2, total + 1)])
+        verb = "shows" if identity_count == 1 else "show"
+        sentences.append(
+            f"{faces} {verb} the same person as {target}. "
+            f"Keep the person's face exactly as in {faces}."
+        )
+    sentences.append(f"Edit {target}: {instruction.strip().rstrip('.')}.")
+    sentences.append(
+        f"Keep everything else in {target} unchanged: the person, the pose, "
+        "the framing, the lighting and the background."
+    )
+    return " ".join(sentences)
+
+
 def build_prompt(
     character: Character,
     scene: Scene,
@@ -148,14 +184,8 @@ def build_prompt(
     total = identity_count + len(scene_labels)
     sentences: list[str] = []
 
-    # 画像の呼び方はエンコーダが各画像の直前に差し込むラベルに合わせる。
-    # picture_labels=True（TextEncodeQwenImageEditPlus）: 枚数によらず "Picture N:"。
-    # False（TextEncodeQwenImage21）: Qwen-Image 2.1 の規約で、2枚以上なら <imageN>、
-    # 1枚だけならタグを使わず "the image"。どちらも範囲指定（"images 1 to 2"）は不可。
     def ref(index: int) -> str:
-        if picture_labels:
-            return f"Picture {index}"
-        return f"<image{index}>" if total > 1 else "the image"
+        return _image_ref(index, total, picture_labels)
 
     identity_refs = [ref(i) for i in range(1, identity_count + 1)]
     if identity_count > 1:
