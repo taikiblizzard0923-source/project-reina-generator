@@ -146,7 +146,10 @@ def build_edit_prompt(instruction: str, identity_count: int = 0, picture_labels:
         verb = "shows" if identity_count == 1 else "show"
         sentences.append(
             f"{faces} {verb} the same person as {target}. "
-            f"Keep the person's face exactly as in {faces}."
+            f"Keep the person's face exactly as in {faces}. "
+            f"Use {faces} only for the face: do not copy the pose, the body, the clothing, "
+            f"the framing or the background from {faces}. "
+            f"The output must keep the composition of {target}."
         )
     sentences.append(f"Edit {target}: {instruction.strip().rstrip('.')}.")
     sentences.append(
