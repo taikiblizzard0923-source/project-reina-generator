@@ -102,6 +102,46 @@ def update_config(config_path: Path, name: str, strength: float, replace: bool) 
     config_path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
 
 
+# ComfyUI のネイティブ Qwen-Image 実装は gate/up 射影を分けて持つが、
+# Diffusers 形式でエクスポートされた LoRA は融合した "gate_up" キーになっていることがある。
+# この場合キーが1つも一致せず、strength を何にしても無効果になる
+# （実際に確認済み: comfyui.log に "lora key not loaded" が全キー分出る）。
+# リネームでは直せない（テンソルの分割が必要で、正しい分割方法が不明なため）。
+SUSPICIOUS_KEY_PATTERNS = ("gate_up", "qkv_proj", "in_proj")
+
+
+def _read_safetensors_keys(path: Path) -> list[str]:
+    """safetensors のヘッダーだけを読んでテンソル名一覧を返す（依存ライブラリ不要）。"""
+    import json
+    import struct
+
+    with path.open("rb") as fh:
+        header_len = struct.unpack("<Q", fh.read(8))[0]
+        header = json.loads(fh.read(header_len))
+    return [k for k in header if k != "__metadata__"]
+
+
+def _warn_if_incompatible(path: Path) -> None:
+    try:
+        keys = _read_safetensors_keys(path)
+    except (OSError, ValueError, struct.error) as exc:  # noqa: F821
+        print(f"  ! ヘッダーを読めませんでした（互換性チェックは省略）: {exc}", file=sys.stderr)
+        return
+
+    hits = sorted({p for k in keys for p in SUSPICIOUS_KEY_PATTERNS if p in k})
+    if hits:
+        print(
+            f"  !! 警告: キー名に {hits} が含まれています。"
+            "Diffusers形式でエクスポートされたLoRAの可能性が高く、"
+            "ComfyUIのネイティブ実装では読み込めない（strengthを上げても無効果）ことがあります。",
+            file=sys.stderr,
+        )
+        print(
+            "     生成後に comfyui.log で確認してください:  grep 'lora key not loaded' /workspace/comfyui.log",
+            file=sys.stderr,
+        )
+
+
 def main() -> int:
     args = sys.argv[1:]
     if not args or args[0] in ("-h", "--help"):
@@ -137,6 +177,8 @@ def main() -> int:
 
     size = path.stat().st_size / 1e6
     print(f"{path}  ({size:.1f}MB)")
+    if path.suffix == ".safetensors":
+        _warn_if_incompatible(path)
 
     config_path = Path(opts["config"]) if opts["config"] else ROOT / "config.yaml"
     update_config(config_path, path.name, float(opts["strength"]), opts["replace"])
