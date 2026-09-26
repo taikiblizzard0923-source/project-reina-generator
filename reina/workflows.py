@@ -63,7 +63,12 @@ class WorkflowBuilder:
             }
         model_ref: list = ["1", 0]
 
-        for index, lora in enumerate(self.loras):
+        # strength 0 は「適用しない」という指定なので、ノード自体を作らない。
+        # LoraLoaderModelOnly を挟むと model.clone()+patch が走る（strength=0 でも）。
+        # GGUF ローダ由来のモデルはこの clone/patch 経路と相性問題が出ることがあるため、
+        # 不要なら GGUF ローダの出力をそのまま使う方が安全
+        active_loras = [lora for lora in self.loras if float(lora.get("strength", 1.0)) != 0]
+        for index, lora in enumerate(active_loras):
             # "12" などの短い ID は他の固定ノード（latent 等）と衝突するので、
             # 十分に桁を離しておく（LoRA を何個使っても衝突しない）
             node_id = f"1{index + 1:02d}0"
