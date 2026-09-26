@@ -345,6 +345,8 @@ def gen(
     args += _reference_args(ref, scene_ref)
     if opts.pop("keep_pose", False):
         args.append("--keep-pose")
+    if opts.pop("no_reference_vae", False):
+        args.append("--no-reference-vae")
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     return _run(args, n)
@@ -369,6 +371,8 @@ def batch(
     args += _reference_args(ref, scene_ref)
     if opts.pop("keep_pose", False):
         args.append("--keep-pose")
+    if opts.pop("no_reference_vae", False):
+        args.append("--no-reference-vae")
     if only:
         args += ["--only", *only]
     for key, value in opts.items():
@@ -400,6 +404,8 @@ def mix(
         args += ["--mix-seed", str(mix_seed)]
     if opts.pop("keep_pose", False):
         args.append("--keep-pose")
+    if opts.pop("no_reference_vae", False):
+        args.append("--no-reference-vae")
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     return _run(args, limit * n)
