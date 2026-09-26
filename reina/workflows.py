@@ -64,7 +64,9 @@ class WorkflowBuilder:
         model_ref: list = ["1", 0]
 
         for index, lora in enumerate(self.loras):
-            node_id = f"1{index + 1}"
+            # "12" などの短い ID は他の固定ノード（latent 等）と衝突するので、
+            # 十分に桁を離しておく（LoRA を何個使っても衝突しない）
+            node_id = f"1{index + 1:02d}0"
             graph[node_id] = {
                 "class_type": "LoraLoaderModelOnly",
                 "inputs": {
