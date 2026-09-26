@@ -99,7 +99,8 @@ class H(BaseHTTPRequestHandler):
             return self._j({"name": "me.jpg", "subfolder": "reina", "type": "input"})
         if self.path == "/prompt":
             wf = json.loads(raw)["prompt"]
-            assert "20" in wf and wf["20"]["class_type"] == "KSampler", "KSampler が無い"
+            samplers = {"KSampler", "SamplerCustomAdvanced"}
+            assert any(n["class_type"] in samplers for n in wf.values()), "サンプラが無い"
             for node_id, node in wf.items():
                 for key in REQUIRED.get(node["class_type"], {}):
                     if key not in node.get("inputs", {}):

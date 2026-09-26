@@ -41,6 +41,31 @@ DEFAULTS: dict[str, Any] = {
         "edit_denoise": 1.0,
     },
     "loras": [],
+    # MiniMax H3（音声付き動画）。ファイルは Comfy-Org/MiniMax-H3 の配布名。
+    # 拡散モデルは PyTorch cu130 未満なら fp8_scaled（配布元の推奨）
+    "video": {
+        "models": {
+            "fl2va": "minimax_h3_fl2va_pruned_fp8_scaled.safetensors",
+            "ref2va": "minimax_h3_ref2va_pruned_fp8_scaled.safetensors",
+            "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "video_vae": "minimax_h3_video_vae_fp16.safetensors",
+            "audio_vae": "minimax_h3_audio_vae_fp32.safetensors",
+            "fl2va_turbo_lora": "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+            "ref2va_turbo_lora": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
+        },
+        "seconds": 5,
+        "megapixels": 0.4,
+        # 高速化 LoRA（4ステップで生成）。false にすると LoRA 無しの steps で回す
+        "turbo": True,
+        "turbo_steps": 4,
+        "steps": 20,
+        "sampler": "res_multistep",
+        # 公式テンプレートの注記: 参照画像を使う ref2va は beta / normal の方が良い
+        "scheduler_i2v": "simple",
+        "scheduler_r2v": "beta",
+        # match: 参照画像を生成サイズに縮める（速い） / max: 大きいまま（同一性は強いが遅い）
+        "ref_image_size": "match",
+    },
 }
 
 
@@ -60,6 +85,7 @@ class Config:
     models: dict[str, Any] = field(default_factory=dict)
     defaults: dict[str, Any] = field(default_factory=dict)
     loras: list[dict[str, Any]] = field(default_factory=list)
+    video: dict[str, Any] = field(default_factory=dict)
     path: Path | None = None
 
     @property
@@ -108,5 +134,6 @@ def load_config(explicit: str | None = None) -> Config:
         models=merged["models"],
         defaults=merged["defaults"],
         loras=merged.get("loras") or [],
+        video=merged["video"],
         path=path,
     )

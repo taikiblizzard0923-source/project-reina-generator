@@ -11,6 +11,8 @@
     gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
     edit("Change the T-shirt to navy blue.")          # 直前の画像を修正指示で直す
+    video("She turns and laughs. Audio: chatter.")    # 直前の画像を動画にする（MiniMax H3）
+    video("walking on a beach. Audio: waves.", ref=["input/face.png", "input/side.png"])  # 参照写真から動画
     compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])   # cfgだけ変えて比較
     compare("standing in a studio", ref=R, steps=[12, 20, 30])    # stepsだけ変えて比較
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
@@ -47,7 +49,7 @@ from pathlib import Path
 
 # %run でも exec でも動くように __file__ 不在に備える
 # CLI が保存ごとに出す "  -> /path/to/image.png" の行
-SAVED_LINE = re.compile(r"->\s*(\S+\.png)\s*$")
+SAVED_LINE = re.compile(r"->\s*(\S+\.(?:png|mp4|webm))\s*$")
 # CLI が最後に出す "完了: /path/to/output/20260922-..." の行
 DONE_LINE = re.compile(r"完了:\s*(\S+)")
 
@@ -69,12 +71,15 @@ if ROOT not in sys.path:
 
 def _display(paths: list[str]) -> None:
     try:
-        from IPython.display import Image, display
+        from IPython.display import Image, Video, display
     except ImportError:  # ノートブック外
         print("\n".join(paths))
         return
     for path in paths:
-        display(Image(path, width=WIDTH))
+        if path.endswith((".mp4", ".webm")):
+            display(Video(path, embed=True, width=WIDTH, html_attributes="controls loop"))
+        else:
+            display(Image(path, width=WIDTH))
 
 
 def show(n: int = 1) -> list[str]:
@@ -434,6 +439,31 @@ def edit(
     if image:
         args += ["--image", image]
     _pop_flags(opts, args)
+    for key, value in opts.items():
+        args += [f"--{key.replace('_', '-')}", str(value)]
+    return _run(args, n)
+
+
+def video(
+    prompt: str,
+    image: str | None = None,
+    ref: str | list[str] | None = None,
+    n: int = 1,
+    **opts,
+) -> bool:
+    """MiniMax H3 で音声付き動画を作って表示する。
+
+    ref を渡すと参照写真の人物が出る動画、渡さなければ image（省略時は最後に生成した
+    画像）を最初のフレームにして動かす。音（セリフ・効果音・音楽）もプロンプトに書く。
+        video("She turns to the camera and laughs. Audio: poolside chatter.")
+        video("walking along a crowded poolside, wearing a black bikini. Audio: splashing.",
+              ref=["input/face.png", "input/side.png"], seconds=5)
+    """
+    args = ["video", prompt, "--repeat", str(n)]
+    if image:
+        args += ["--image", image]
+    args += _reference_args(ref)
+    _pop_flags(opts, args, BOOL_FLAGS + ("no_turbo",))
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     return _run(args, n)

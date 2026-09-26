@@ -26,6 +26,7 @@ from .prompts import (
     load_scenes,
     scene_overrides,
 )
+from .video import VideoWorkflowBuilder, frame_count, reference_prompt, video_size
 from .workflows import COMBINED_ENCODERS, EDIT_ENCODER_CANDIDATES, WorkflowBuilder, random_seed
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -182,9 +183,9 @@ def _out_dir(args: argparse.Namespace) -> Path:
 
 def _save(out_dir: Path, stem: str, images: list[tuple[str, bytes]], meta: dict[str, Any]) -> list[Path]:
     saved: list[Path] = []
-    for index, (_, data) in enumerate(images):
+    for index, (name, data) in enumerate(images):
         suffix = f"_{index}" if len(images) > 1 else ""
-        path = out_dir / f"{stem}{suffix}.png"
+        path = out_dir / f"{stem}{suffix}{Path(name).suffix or '.png'}"
         path.write_bytes(data)
         saved.append(path)
     if saved:
@@ -602,6 +603,92 @@ def cmd_edit(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+def _aspect(value: str) -> tuple[float, float]:
+    w, _, h = value.partition(":")
+    return float(w), float(h)
+
+
+def cmd_video(args: argparse.Namespace) -> int:
+    """MiniMax H3 で音声付き動画を作る。
+
+    -r を付けると参照写真の人物が出る動画（ref2va）、付けなければ静止画を動かす（fl2va。
+    --image 省略時は最後に生成した画像）。
+    """
+    cfg = load_config(args.config)
+    video = cfg.video
+    client = _make_client(cfg, args)
+    builder = VideoWorkflowBuilder(video)
+    seconds = args.seconds if args.seconds is not None else float(video["seconds"])
+    megapixels = args.megapixels if args.megapixels is not None else float(video["megapixels"])
+    turbo = False if args.no_turbo else None
+    references = list(args.reference or [])
+
+    if references:
+        mode, paths = "ref2va", references
+        aspect = _aspect(args.aspect)
+        prompt = args.prompt if args.raw else reference_prompt(args.prompt, len(references))
+    else:
+        first = Path(args.image) if args.image else _latest_output()
+        if first is None or not first.exists():
+            _log("動かす画像がありません。--image で指定するか、-r で参照写真を渡してください")
+            return 1
+        from PIL import Image
+
+        with Image.open(first) as im:
+            aspect = im.size
+        mode, paths, prompt = "fl2va", [str(first)], args.prompt
+        _log(f"最初のフレーム: {first}")
+    width, height = (args.width, args.height) if args.width and args.height else video_size(*aspect, megapixels)
+    _log(f"{mode}  {width}x{height}  {seconds}s ({frame_count(seconds)} フレーム)")
+
+    uploaded = [Path(p).name for p in paths] if args.dry_run else [client.upload_image(p) for p in paths]
+    out_dir = _out_dir(args)
+    failures = 0
+    for take in range(args.repeat):
+        seed = args.seed + take if args.seed is not None else random_seed()
+        common = dict(width=width, height=height, seconds=seconds, seed=seed,
+                      steps=args.steps, turbo=turbo, prefix="reina/video")
+        if mode == "ref2va":
+            graph = builder.reference_to_video(prompt, uploaded, **common)
+        else:
+            graph = builder.image_to_video(prompt, uploaded[0], **common)
+        stem = f"video_{seed}"
+        if args.dry_run:
+            print(json.dumps({"stem": stem, "prompt": prompt, "workflow": graph}, ensure_ascii=False, indent=2))
+            continue
+        client.fill_missing_inputs(graph)
+        _log(f"[{take + 1}/{args.repeat}] video seed={seed}")
+        started = time.time()
+        try:
+            files = client.run(graph, on_progress=_progress("video", started))
+        except ComfyError as exc:
+            failures += 1
+            print("", file=sys.stderr)
+            _log(f"  [NG] {time.time() - started:.1f}s で失敗: {exc}")
+            continue
+        print("", file=sys.stderr)
+        _log(f"  {time.time() - started:.1f}s で完了")
+        meta = {
+            "mode": mode,
+            "prompt": prompt,
+            "inputs": uploaded,
+            "width": width,
+            "height": height,
+            "seconds": seconds,
+            "frames": frame_count(seconds),
+            "seed": seed,
+            "turbo": turbo is not False and bool(video.get("turbo", True)),
+            "steps": args.steps,
+            "models": video["models"],
+        }
+        for path in _save(out_dir, stem, files, meta):
+            _log(f"  -> {path}")
+
+    if not args.dry_run:
+        _log(f"完了: {out_dir} (失敗 {failures}/{args.repeat})")
+    return 1 if failures else 0
+
+
 # -- パーサ -----------------------------------------------------------------
 
 
@@ -716,6 +803,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_common(edit)
     edit.set_defaults(func=cmd_edit)
+
+    video = sub.add_parser("video", help="MiniMax H3 で音声付き動画を作る")
+    video.add_argument("prompt", help="動きやカメラ、音（セリフ・効果音・音楽）の説明")
+    video.add_argument("--image", help="最初のフレームにする画像（省略時は最後に生成した画像）")
+    video.add_argument(
+        "-r", "--reference", action="append",
+        help="参照写真（顔の写真。指定するとこの人物が出る動画を作る。最大9枚）",
+    )
+    video.add_argument("--seconds", type=float, help="長さ（秒。既定は config の video.seconds）")
+    video.add_argument("--megapixels", type=float, help="画素数（既定 0.4 = 縦長なら 544x800 程度）")
+    video.add_argument("--aspect", default="2:3", help="-r のときの縦横比（既定 2:3）")
+    video.add_argument("--width", type=int)
+    video.add_argument("--height", type=int)
+    video.add_argument("--steps", type=int, help="ステップ数（既定: 高速化LoRAありで4、なしで20）")
+    video.add_argument("--no-turbo", action="store_true", dest="no_turbo", help="高速化 LoRA を使わない")
+    video.add_argument("--raw", action="store_true", help="-r のとき、人物についての定型文を付けない")
+    video.add_argument("--seed", type=int)
+    video.add_argument("--repeat", type=int, default=1)
+    video.add_argument("-o", "--out", help="出力ディレクトリ（既定: output/）")
+    video.add_argument("--config")
+    video.add_argument("--server")
+    video.add_argument("--timeout", type=int, default=3600, help="1本あたりの待機上限(秒)")
+    video.add_argument("--dry-run", action="store_true")
+    video.set_defaults(func=cmd_video)
 
     return parser
 

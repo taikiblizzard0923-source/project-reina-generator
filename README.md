@@ -340,6 +340,29 @@ python -m reina batch
 
 ---
 
+## 3-6. 動画を作る（MiniMax H3）
+
+音声付きの動画（最大15秒・24fps）を作ります。モデルは約63GBあるので、先に取得します。
+
+```bash
+bash go.sh h3        # モデル取得（バックグラウンド）。終わったら bash go.sh restart
+```
+
+**ライセンス上、米国・EU・英国・韓国の Pod では使えません**（実行も出力の利用も禁止）。
+`go.sh h3` は RunPod のデータセンターがそれらの地域なら取得せずに止まります。
+
+```python
+# 直前に生成した画像を最初のフレームにして動かす
+video("She turns to the camera and laughs. Audio: poolside chatter, water splashing.")
+
+# 参照写真（顔の2枚）の人物が出る動画を作る
+video("walking along a crowded poolside, wearing a black bikini. Audio: crowd chatter.",
+      ref=["input/face.png", "input/side.png"], seconds=5)
+```
+
+プロンプトには動き・カメラ・音（セリフ・効果音・音楽）をまとめて英語で書きます。
+既定は高速化 LoRA で4ステップ、0.4 メガピクセルです（`no_turbo=True` で20ステップ）。
+
 ## 4. 同一性（顔が似ない）を上げる
 
 似ないときは、上から順に効きます。

@@ -61,3 +61,11 @@ defaults:
 loras: []
   # - name: "reina_v1.safetensors"
   #   strength: 0.85
+
+# MiniMax H3（音声付き動画）。取得は bash go.sh h3
+# ライセンス上、米国・EU・英国・韓国の Pod では使えない
+video:
+  seconds: 5          # 長さ（秒）。17k+5 フレームに切り上げられる
+  megapixels: 0.4     # 縦長なら 544x800 程度。上限は短辺 768 / 長辺 1344
+  turbo: true         # 高速化 LoRA（4ステップ）。false で 20 ステップ
+  ref_image_size: "match"   # max にすると参照写真を大きいまま使う（同一性↑・遅い）

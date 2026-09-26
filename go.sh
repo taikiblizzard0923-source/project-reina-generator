@@ -10,6 +10,7 @@
 #   bash go.sh fixdeps  壊れた Python パッケージを検出して入れ直す
 #   bash go.sh webui    ブラウザだけで使える生成 UI を ComfyUI に組み込む
 #   bash go.sh lora <URL> [--name N] [--strength 0.85]  LoRA を追加
+#   bash go.sh h3       MiniMax H3（音声付き動画）のモデルを取得（約63GB・バックグラウンド）
 #   bash go.sh backup   設定と参照画像を1ファイルに退避（Pod 移行前に）
 #   bash go.sh restore <file>  退避したファイルから復元
 #   bash go.sh log      進捗を表示（Ctrl-C で抜けても処理は続く）
@@ -183,6 +184,17 @@ MSG
 
   start)
     bash "$HERE/scripts/runpod_start.sh" --daemon
+    ;;
+
+  h3)
+    if pgrep -f "download_h3.sh" >/dev/null; then
+      echo "すでに実行中です。進捗は:  bash go.sh log"
+      exit 0
+    fi
+    nohup bash "$HERE/scripts/download_h3.sh" "$COMFY" >"$LOG" 2>&1 &
+    sleep 3
+    cat "$LOG"
+    echo "開始しました（進捗: bash go.sh log）"
     ;;
 
   restart)
