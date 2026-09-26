@@ -25,7 +25,7 @@ from .prompts import (
     load_scenes,
     scene_overrides,
 )
-from .workflows import EDIT_ENCODER_CANDIDATES, WorkflowBuilder, random_seed
+from .workflows import COMBINED_ENCODERS, EDIT_ENCODER_CANDIDATES, WorkflowBuilder, random_seed
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -382,6 +382,7 @@ def _run_jobs(
                 keep_pose=getattr(args, "keep_pose", False),
                 identity_count=len(reference_paths),
                 scene_labels=[label for _, label in scene_refs],
+                picture_labels=encoder not in COMBINED_ENCODERS,
             )
             if reference_mode:
                 graph = builder.reference_to_image(

@@ -17,13 +17,16 @@ from typing import Any
 Graph = dict[str, dict[str, Any]]
 
 # 参照画像つきエンコーダの候補（先に見つかったものを使う）
-# TextEncodeQwenImage21 は Qwen-Image 2.1 用の新ノード（ComfyUI v0.37.0〜）。
-# 1回の呼び出しで positive/negative 両方を出力し、参照画像は最大16枚（可変入力）。
-# 古いノード（*EditPlus 系）は image1〜image3 の3枚固定で、positive/negative を
-# 別々に2回呼ぶ必要がある。
+# TextEncodeQwenImageEditPlus は image1〜image3 の3枚固定で、positive/negative を
+# 別々に2回呼ぶ。各画像に "Picture N:" のラベルが付く。
+# TextEncodeQwenImage21 は Qwen-Image 2.1 用の新ノード（ComfyUI v0.37.0〜）で、
+# 1回の呼び出しで positive/negative 両方を出し、参照画像は最大16枚、ラベルは <imageN>。
+# ただし UC GGUF + パッチした ComfyUI-GGUF の構成では、同じシード・同じ参照画像でも
+# 21 だと別人になり、EditPlus だと本人になることを実機で確認したため EditPlus を優先する。
+# 4枚以上使いたいときは --encoder TextEncodeQwenImage21 で明示する。
 EDIT_ENCODER_CANDIDATES = (
-    "TextEncodeQwenImage21",
     "TextEncodeQwenImageEditPlus",
+    "TextEncodeQwenImage21",
     "TextEncodeQwenImageEdit",
 )
 

@@ -248,9 +248,19 @@ python -m reina generate "relaxing at home in the afternoon" \
 > \<image1\>, \<image2\> and \<image3\> ... Include the room and her golden retriever in the
 > photograph, matching how they look in their own reference images.
 
-Qwen-Image 2.1 の規約どおり、2枚以上のときは各画像を `<image1>` `<image2>` … で個別に指します
-（エンコーダが各画像の直前に同じタグを入れるため）。"images 1 to 3" のような範囲指定や
-"the first image" のような言い方は使いません。1枚だけのときはタグを使わず "the image" です。
+画像の呼び方は、エンコーダが各画像の直前に入れるラベルに合わせて切り替わります。
+
+| エンコーダ | 枚数 | 呼び方 |
+|---|---|---|
+| `TextEncodeQwenImageEditPlus`（既定） | 3枚まで | `Picture 1`, `Picture 2` … |
+| `TextEncodeQwenImage21` | 16枚まで | 2枚以上は `<image1>` `<image2>` …、1枚なら `the image` |
+
+どちらも "images 1 to 3" のような範囲指定は使いません。
+
+既定は `TextEncodeQwenImageEditPlus` です。UC GGUF（パッチした ComfyUI-GGUF）の構成では、
+同じシード・同じ参照画像でも `TextEncodeQwenImage21` だと別人になり、EditPlus だと本人に
+なることを確認しています。上の例のように4枚以上渡すときは `--encoder TextEncodeQwenImage21`
+を付けるか、人物の3枚をコラージュ（上記）で1枚にまとめてください。
 
 ### 3-2. シーンを一括生成
 

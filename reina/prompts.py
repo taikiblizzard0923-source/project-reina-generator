@@ -127,6 +127,7 @@ def build_prompt(
     keep_pose: bool = False,
     identity_count: int = 0,
     scene_labels: list[str] | None = None,
+    picture_labels: bool = False,
 ) -> str:
     """参照画像モードの指示文を組み立てる。
 
@@ -147,11 +148,13 @@ def build_prompt(
     total = identity_count + len(scene_labels)
     sentences: list[str] = []
 
-    # Qwen-Image 2.1 の規約: 2枚以上なら各画像を <image1> <image2> ... で個別に指す
-    # （TextEncodeQwenImage21 が各画像の直前に同じタグを差し込む）。
-    # "images 1 to 2" のような範囲指定や "the first image" などの自然文は不可。
-    # 1枚だけのときはタグを使わず "the image" と書く。
+    # 画像の呼び方はエンコーダが各画像の直前に差し込むラベルに合わせる。
+    # picture_labels=True（TextEncodeQwenImageEditPlus）: 枚数によらず "Picture N:"。
+    # False（TextEncodeQwenImage21）: Qwen-Image 2.1 の規約で、2枚以上なら <imageN>、
+    # 1枚だけならタグを使わず "the image"。どちらも範囲指定（"images 1 to 2"）は不可。
     def ref(index: int) -> str:
+        if picture_labels:
+            return f"Picture {index}"
         return f"<image{index}>" if total > 1 else "the image"
 
     identity_refs = [ref(i) for i in range(1, identity_count + 1)]
