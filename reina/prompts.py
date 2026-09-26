@@ -220,15 +220,22 @@ DEFAULT_NEGATIVE = (
     "perfectly symmetrical face, flawless complexion, "
     "oversaturated, HDR, overprocessed, excessive contrast, glowing skin, "
     "cgi, 3d render, digital art, illustration, anime, doll, mannequin, "
-    # 破綻の抑制
+    # 画質の破綻
     "lowres, blurry, out of focus, jpeg artifacts, worst quality, "
-    "deformed hands, extra fingers, extra limbs, bad anatomy, "
     "watermark, text, logo, signature"
+)
+
+# 見た目の好みと違って人体の破綻対策は常に要るので、character.yaml で negative を
+# 書き換えても外れないよう別枠で必ず足す
+ANATOMY_NEGATIVE = (
+    "bad anatomy, deformed body, extra limbs, extra legs, extra arms, "
+    "three legs, missing limbs, fused legs, fused fingers, extra fingers, "
+    "deformed hands, malformed feet, disconnected limbs"
 )
 
 
 def build_negative(character: Character, extra: str = "") -> str:
-    parts = [character.negative or DEFAULT_NEGATIVE]
+    parts = [character.negative or DEFAULT_NEGATIVE, ANATOMY_NEGATIVE]
     if extra:
         parts.append(extra)
     return ", ".join(p for p in parts if p)
