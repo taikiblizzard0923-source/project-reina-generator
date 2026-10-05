@@ -367,6 +367,17 @@ video("walking along a crowded poolside, wearing a black bikini, she waves",
 指示文は H3 の学習時の書式（`subject_definitions:` / `detailed_description:` /
 `overall_soundscape:` など、セリフは `<d>[Japanese] …</d>`）に自動で組み立てます。
 `raw=True` なら第1引数をそのまま渡します。
+複数本作るときは `clips()` を使うと、静止画を全部作ってから動画を全部作るので、H3 の読み込みが1回で済みます
+（3秒の動画なら、2本目以降は1本あたり約45秒）。
+
+```python
+clips([
+    ("on a beach at sunset, white sundress", "she brushes her hair back and smiles", "きれいだね。"),
+    dict(scene="at a cafe terrace, white blouse", action="she sips her coffee",
+         say="ここ好き。", sound="quiet cafe ambience"),
+], ref=["input/face.png", "input/side.png"], seconds=3, voice="a calm, slightly low adult female voice")
+```
+
 進捗バーの秒数はモデルの読み込みとプロンプトの読み取りを含みます。静止画の直後の1本目は
 H3 の読み込みからになるので約150秒、H3 が載ったまま同じプロンプトで seed だけ変えると約25秒です。
 既定は高速化 LoRA（lightx2v/Minimax-h3-Turbo）で、静止画からは4ステップ（v1.1 768p）、

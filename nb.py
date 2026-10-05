@@ -14,6 +14,7 @@
     video("she turns and laughs", say="こんにちは！")          # 直前の画像を動画にする（MiniMax H3）
     video("walking on a beach", ref=["input/face.png", "input/side.png"], sound="waves")  # 参照写真から動画
     clip("on a beach, white sundress", "she walks and waves", ref=R, say="こんにちは！")  # 静止画→動画（顔が一番似る）
+    clips([("on a beach", "she waves", "やあ"), ("at a cafe", "she sips coffee", "おいしい")], ref=R)  # まとめて（速い）
     free()                                           # VRAM のモデルとキャッシュを捨てる（重いときに）
     compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])   # cfgだけ変えて比較
     compare("standing in a studio", ref=R, steps=[12, 20, 30])    # stepsだけ変えて比較
@@ -57,6 +58,8 @@ DONE_LINE = re.compile(r"完了:\s*(\S+)")
 
 # 直近の実行の出力ディレクトリ（pack() が ZIP にする対象）
 LAST_RUN: str | None = None
+# 直近の実行で保存されたファイル（clips() が静止画のパスを拾う）
+LAST_SAVED: list[str] = []
 
 ROOT = (
     os.path.dirname(os.path.abspath(__file__))
@@ -124,6 +127,7 @@ def _run(args: list[str], expect: int) -> bool:
 
     pending = ""
     shown: list[str] = []
+    globals()["LAST_SAVED"] = shown
     while True:
         chunk = proc.stdout.read(128)
         if not chunk:
@@ -501,6 +505,56 @@ def clip(
     if not gen(scene, ref=ref, **image_opts):
         return False
     return video(action, **video_opts)
+
+
+def clips(
+    shots: list,
+    ref: str | list[str] | None = None,
+    seed: int | None = None,
+    image_opts: dict | None = None,
+    **video_opts,
+) -> list[str]:
+    """clip() を複数まとめて、静止画を全部作ってから動画を全部作る。
+
+    静止画と動画を交互に作ると毎回 H3 の読み込み（1本あたり +100 秒ほど）が入るが、
+    まとめれば読み込みは1回で済む。shots の各要素は dict か (scene, action[, say]) のタプル。
+    dict には scene / action のほか say・voice・sound・music・lang・seconds などを個別に書ける
+    （書かなかったものは video_opts の値になる）。
+        clips([
+            ("on a beach at sunset, white sundress", "she brushes her hair back and smiles", "きれいだね。"),
+            dict(scene="at a cafe terrace, white blouse", action="she sips her coffee",
+                 say="ここ好き。", sound="quiet cafe ambience"),
+        ], ref=R, seconds=3, voice="a calm, slightly low adult female voice")
+    """
+    image_opts = dict(image_opts or {})
+    plans = []
+    for shot in shots:
+        if not isinstance(shot, dict):
+            shot = dict(zip(("scene", "action", "say"), shot))
+        plans.append(dict(shot))
+
+    stills: list[str | None] = []
+    for index, plan in enumerate(plans):
+        print(f"\n===== 静止画 {index + 1}/{len(plans)} =====")
+        opts = dict(image_opts)
+        if seed is not None:
+            opts.setdefault("seed", seed + index)
+        ok = gen(plan.pop("scene"), ref=ref, **opts)
+        stills.append(LAST_SAVED[-1] if ok and LAST_SAVED else None)
+
+    videos: list[str] = []
+    for index, (plan, still) in enumerate(zip(plans, stills)):
+        print(f"\n===== 動画 {index + 1}/{len(plans)} =====")
+        if still is None:
+            print("静止画が作れなかったので飛ばします")
+            continue
+        opts = {**video_opts, **plan}
+        if seed is not None:
+            opts.setdefault("seed", seed + index)
+        if video(opts.pop("action"), image=still, **opts) and LAST_SAVED:
+            videos.append(LAST_SAVED[-1])
+    print(f"\n動画 {len(videos)}/{len(plans)} 本できました")
+    return videos
 
 
 def free() -> bool:
