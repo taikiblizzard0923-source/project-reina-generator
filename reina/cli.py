@@ -616,8 +616,8 @@ def _aspect(value: str) -> tuple[float, float]:
 def cmd_free(args: argparse.Namespace) -> int:
     """ComfyUI が抱えているモデルを VRAM から外す。
 
-    静止画（Qwen-Image）と動画（MiniMax H3）を交互に使うと、前のモデルが VRAM に残り、
-    次のモデルの一部がメインメモリに逃がされて数倍遅くなる（4ステップで 25s → 150s）。
+    VRAM が詰まって動作が重い・固まりかけたときの逃げ道。ノードのキャッシュも捨てるので、
+    次の生成はモデルの読み込みからやり直しになる。
     """
     cfg = load_config(args.config)
     _make_client(cfg, args).free()
@@ -793,7 +793,7 @@ def build_parser() -> argparse.ArgumentParser:
     refs.add_argument("--timeout", type=int, default=120)
     refs.set_defaults(func=cmd_refs)
 
-    free = sub.add_parser("free", help="読み込み済みのモデルを VRAM から外す（画像と動画を切り替えるとき）")
+    free = sub.add_parser("free", help="読み込み済みのモデルとキャッシュを捨てる（VRAM が詰まったときに）")
     free.add_argument("--config")
     free.add_argument("--server")
     free.set_defaults(func=cmd_free)

@@ -367,9 +367,8 @@ video("walking along a crowded poolside, wearing a black bikini, she waves",
 指示文は H3 の学習時の書式（`subject_definitions:` / `detailed_description:` /
 `overall_soundscape:` など、セリフは `<d>[Japanese] …</d>`）に自動で組み立てます。
 `raw=True` なら第1引数をそのまま渡します。
-`clip()` は静止画を作る前と動画にする前に `free()`（モデルを VRAM から外す）を自動で呼びます。
-静止画のモデルが残ったままだと H3 の一部がメインメモリに逃がされ、4ステップで 25 秒が 150 秒になります。
-`gen()` と `video()` を別々に交互に使うときは、間で `free()` を呼んでください。
+進捗バーの秒数はモデルの読み込みとプロンプトの読み取りを含みます。静止画の直後の1本目は
+H3 の読み込みからになるので約150秒、H3 が載ったまま同じプロンプトで seed だけ変えると約25秒です。
 既定は高速化 LoRA（lightx2v/Minimax-h3-Turbo）で、静止画からは4ステップ（v1.1 768p）、
 参照写真からは8ステップ（Ref2VA v1.0 768p）、0.4 メガピクセルです。サンプラは配布元どおり
 euler・simple で、LoRA ごとの学習時の shift（768p 版は映像6 / 音声3）を自動で合わせます。

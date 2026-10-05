@@ -14,7 +14,7 @@
     video("she turns and laughs", say="こんにちは！")          # 直前の画像を動画にする（MiniMax H3）
     video("walking on a beach", ref=["input/face.png", "input/side.png"], sound="waves")  # 参照写真から動画
     clip("on a beach, white sundress", "she walks and waves", ref=R, say="こんにちは！")  # 静止画→動画（顔が一番似る）
-    free()                                           # VRAM のモデルを外す（画像↔動画の切り替え前に）
+    free()                                           # VRAM のモデルとキャッシュを捨てる（重いときに）
     compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])   # cfgだけ変えて比較
     compare("standing in a studio", ref=R, steps=[12, 20, 30])    # stepsだけ変えて比較
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
@@ -498,16 +498,16 @@ def clip(
     if seed is not None:
         image_opts.setdefault("seed", seed)
         video_opts.setdefault("seed", seed)
-    # 前のモデルが VRAM に残ったままだと、次のモデルが溢れて数倍遅くなる
-    free()
     if not gen(scene, ref=ref, **image_opts):
         return False
-    free()
     return video(action, **video_opts)
 
 
 def free() -> bool:
-    """読み込み済みのモデルを VRAM から外す。gen() と video() を交互に使う前に呼ぶと速い。"""
+    """読み込み済みのモデルとキャッシュを捨てる（VRAM が詰まった・動作が重いときに）。
+
+    次の生成はモデルの読み込みからやり直しになるので、普段は呼ばなくてよい。
+    """
     result = subprocess.run(
         [sys.executable, "-m", "reina", "free"], cwd=ROOT, capture_output=True, text=True
     )
