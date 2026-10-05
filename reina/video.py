@@ -128,6 +128,7 @@ class VideoWorkflowBuilder:
         steps: int | None = None,
         turbo: bool | None = None,
         prefix: str = "reina/video",
+        scheduler: str | None = None,
     ) -> Graph:
         """静止画を最初のフレームにして動かす（fl2va）。first_frame は ComfyUI input/ の名前。"""
         graph: Graph = {}
@@ -145,7 +146,7 @@ class VideoWorkflowBuilder:
                 "length": frame_count(seconds),
             },
         }
-        return self._sample_and_save(graph, model_ref, self.video["scheduler_i2v"], steps, seed, prefix)
+        return self._sample_and_save(graph, model_ref, scheduler or self.video["scheduler_i2v"], steps, seed, prefix)
 
     def reference_to_video(
         self,
@@ -158,6 +159,7 @@ class VideoWorkflowBuilder:
         steps: int | None = None,
         turbo: bool | None = None,
         prefix: str = "reina/video",
+        scheduler: str | None = None,
     ) -> Graph:
         """参照写真の人物が出る動画を作る（ref2va）。references は ComfyUI input/ の名前。"""
         if not references:
@@ -185,4 +187,4 @@ class VideoWorkflowBuilder:
                 "ref_image_size": self.video.get("ref_image_size", "match"),
             },
         }
-        return self._sample_and_save(graph, model_ref, self.video["scheduler_r2v"], steps, seed, prefix)
+        return self._sample_and_save(graph, model_ref, scheduler or self.video["scheduler_r2v"], steps, seed, prefix)

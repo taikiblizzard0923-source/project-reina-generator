@@ -60,9 +60,11 @@ DEFAULTS: dict[str, Any] = {
         "turbo_steps": 4,
         "steps": 20,
         "sampler": "res_multistep",
-        # 公式テンプレートの注記: 参照画像を使う ref2va は beta / normal の方が良い
+        # 公式テンプレートの既定は両方 simple。テンプレートの注記には「ref2va は beta / normal
+        # の方が良い」とあるが、4ステップの高速化 LoRA と beta の組み合わせでは仕上がりきらず、
+        # 参照写真が半透明で重なった絵になった
         "scheduler_i2v": "simple",
-        "scheduler_r2v": "beta",
+        "scheduler_r2v": "simple",
         # match: 参照画像を生成サイズに縮める（速い） / max: 大きいまま（同一性は強いが遅い）
         "ref_image_size": "match",
     },
