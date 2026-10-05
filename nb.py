@@ -13,6 +13,7 @@
     edit("Change the T-shirt to navy blue.")          # 直前の画像を修正指示で直す
     video("she turns and laughs", say="Hi!")          # 直前の画像を動画にする（MiniMax H3）
     video("walking on a beach", ref=["input/face.png", "input/side.png"], sound="waves")  # 参照写真から動画
+    clip("on a beach, white sundress", "she walks and waves", ref=R, say="Hi!")  # 静止画→動画（顔が一番似る）
     compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])   # cfgだけ変えて比較
     compare("standing in a studio", ref=R, steps=[12, 20, 30])    # stepsだけ変えて比較
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
@@ -473,6 +474,32 @@ def video(
     for key, value in opts.items():
         args += [f"--{key.replace('_', '-')}", str(value)]
     return _run(args, n)
+
+
+def clip(
+    scene: str,
+    action: str,
+    ref: str | list[str] | None = None,
+    seed: int | None = None,
+    image_opts: dict | None = None,
+    **video_opts,
+) -> bool:
+    """参照写真から静止画を作り、それを最初のフレームにして動画にする。
+
+    参照写真から直接動画にする（video(ref=...)）より顔が本人に近い。
+    scene は静止画の場面（服装・場所・光）、action はそこからの動き。
+    video_opts は video() に、image_opts は gen() にそのまま渡る。
+        clip("walking along a crowded poolside toward the camera, wearing a black bikini",
+             "she keeps walking toward the camera and waves", ref=R, seconds=3,
+             say="Hi!", voice="a calm, slightly low adult female voice", sound="crowd chatter")
+    """
+    image_opts = dict(image_opts or {})
+    if seed is not None:
+        image_opts.setdefault("seed", seed)
+        video_opts.setdefault("seed", seed)
+    if not gen(scene, ref=ref, **image_opts):
+        return False
+    return video(action, **video_opts)
 
 
 def compare(prompt: str, ref=None, seed: int | None = None, label_fmt: str | None = None, **grid) -> None:

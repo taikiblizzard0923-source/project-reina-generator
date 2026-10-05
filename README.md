@@ -352,7 +352,12 @@ bash go.sh h3        # モデル取得（バックグラウンド）。終わっ
 video("she turns to the camera and laughs", say="Hi!",
       voice="a calm, slightly low adult female voice", sound="poolside chatter, water splashing")
 
-# 参照写真（顔の写真）の人物が出る動画を作る
+# 参照写真から静止画を作り、それを動かす（顔が一番本人に近い。おすすめ）
+clip("walking along a crowded poolside toward the camera, wearing a black bikini",
+     "she keeps walking toward the camera and waves",
+     ref=["input/face.png", "input/side.png"], say="Hi!", sound="crowd chatter", seconds=3)
+
+# 参照写真（顔の写真）の人物が出る動画を直接作る（速いが顔はやや離れる）
 video("walking along a crowded poolside, wearing a black bikini, she waves",
       ref=["input/face.png", "input/side.png"], say="Hi!", sound="crowd chatter", seconds=5)
 ```
