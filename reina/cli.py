@@ -657,7 +657,7 @@ def cmd_video(args: argparse.Namespace) -> int:
                       steps=args.steps, turbo=turbo, prefix="reina/video", scheduler=args.scheduler,
                       lora=args.lora)
         if mode == "ref2va":
-            graph = builder.reference_to_video(prompt, uploaded, **common)
+            graph = builder.reference_to_video(prompt, uploaded, ref_image_size=args.ref_image_size, **common)
         else:
             graph = builder.image_to_video(prompt, uploaded[0], **common)
         stem = f"video_{seed}"
@@ -688,6 +688,7 @@ def cmd_video(args: argparse.Namespace) -> int:
             "turbo": turbo is not False and bool(video.get("turbo", True)),
             "steps": args.steps,
             "scheduler": graph["13"]["inputs"]["scheduler"],
+            "ref_image_size": graph["10"]["inputs"].get("ref_image_size"),
             "lora": graph.get("2", {}).get("inputs", {}).get("lora_name"),
             "shift": [graph["7"]["inputs"]["shift_video"], graph["7"]["inputs"]["shift_audio"]],
             "models": video["models"],
@@ -825,6 +826,10 @@ def build_parser() -> argparse.ArgumentParser:
     video.add_argument("--seconds", type=float, help="長さ（秒。既定は config の video.seconds）")
     video.add_argument("--megapixels", type=float, help="画素数（既定 0.4 = 縦長なら 544x800 程度）")
     video.add_argument("--aspect", default="2:3", help="-r のときの縦横比（既定 2:3）")
+    video.add_argument(
+        "--ref-image-size", choices=["match", "max"], dest="ref_image_size",
+        help="-r のときの参照写真の扱い（match: 生成サイズに縮める・速い / max: 大きいまま・顔が似やすいが遅い）",
+    )
     video.add_argument("--width", type=int)
     video.add_argument("--height", type=int)
     video.add_argument("--steps", type=int, help="ステップ数（既定: 高速化LoRAありで4、なしで20）")

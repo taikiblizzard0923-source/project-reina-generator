@@ -245,6 +245,7 @@ class VideoWorkflowBuilder:
         prefix: str = "reina/video",
         scheduler: str | None = None,
         lora: str | None = None,
+        ref_image_size: str | None = None,
     ) -> Graph:
         """参照写真の人物が出る動画を作る（ref2va）。references は ComfyUI input/ の名前。"""
         if not references:
@@ -269,7 +270,7 @@ class VideoWorkflowBuilder:
                 "width": int(width),
                 "height": int(height),
                 "length": frame_count(seconds),
-                "ref_image_size": self.video.get("ref_image_size", "match"),
+                "ref_image_size": ref_image_size or self.video.get("ref_image_size", "match"),
             },
         }
         return self._sample_and_save(
