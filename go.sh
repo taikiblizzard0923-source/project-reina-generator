@@ -200,10 +200,28 @@ MSG
   restart)
     # Web UI（custom_nodes/reina_webui）のサーバー側は起動時にしか読み込まれない
     if pkill -f "main.py --listen"; then
-      echo "ComfyUI を停止しました"
       for _ in $(seq 1 20); do pgrep -f "main.py --listen" >/dev/null || break; sleep 1; done
+      # 生成中に固まった ComfyUI は TERM では終わらず、VRAM とポートを握ったまま残る
+      if pgrep -f "main.py --listen" >/dev/null; then
+        echo "終了しないので強制終了します"
+        pkill -9 -f "main.py --listen"
+        for _ in $(seq 1 20); do pgrep -f "main.py --listen" >/dev/null || break; sleep 1; done
+      fi
+      echo "ComfyUI を停止しました"
     fi
     bash "$HERE/scripts/runpod_start.sh" --daemon
+    printf "応答を待っています"
+    for i in $(seq 1 60); do
+      if curl -s -m 3 "http://127.0.0.1:${PORT:-8188}/system_stats" >/dev/null; then
+        echo " → 起動しました（$((i * 5))秒）"
+        exit 0
+      fi
+      printf "."
+      sleep 5
+    done
+    echo
+    echo "!! 5分待っても応答しません。ログを確認してください:  tail -n 30 /workspace/comfyui.log"
+    exit 1
     ;;
 
   check)
