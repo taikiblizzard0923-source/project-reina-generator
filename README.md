@@ -430,6 +430,21 @@ A40（Ampere / VRAM 48GB）での実測値：
 `int8_convrot` は Ada / Hopper 世代向けの最適化で、**Ampere では逆に遅くなります**。
 切り替えは `DIT_VARIANT=int8 bash go.sh official` と `config.yaml` の `unet_gguf` の書き換えで行えます。
 
+### 本体モデルを追加・切り替える
+
+```bash
+CIVITAI_TOKEN=xxxx bash go.sh model "https://civitai.com/api/download/models/123?fileId=456"
+```
+
+```python
+use_model()                                   # 置いてある本体モデルの一覧（* が今のもの）
+gen("...", ref=R, seed=1, model="xxx.safetensors")   # 今回だけ別のモデルで（比較用）
+use_model("xxx.safetensors")                  # 以降ずっとこのモデルを使う
+```
+
+`.gguf` は `models/unet/`、`.safetensors` は `models/diffusion_models/` に置かれます。
+A40（Ampere）では int8 convrot と fp8 は計算を置き換えて動くので遅く、bf16 / fp16 版が一番速くて高画質です。
+
 ---
 
 ## 6. うまくいかないとき

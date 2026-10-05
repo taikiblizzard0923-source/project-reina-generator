@@ -10,6 +10,7 @@
 #   bash go.sh fixdeps  壊れた Python パッケージを検出して入れ直す
 #   bash go.sh webui    ブラウザだけで使える生成 UI を ComfyUI に組み込む
 #   bash go.sh lora <URL> [--name N] [--strength 0.85]  LoRA を追加
+#   bash go.sh model <URL> [--name N]  本体モデルを追加（Civitai は CIVITAI_TOKEN=... を前に付ける）
 #   bash go.sh h3       MiniMax H3（音声付き動画）のモデルを取得（約63GB・バックグラウンド）
 #   bash go.sh backup   設定と参照画像を1ファイルに退避（Pod 移行前に）
 #   bash go.sh restore <file>  退避したファイルから復元
@@ -66,6 +67,14 @@ case "${1:-setup}" in
     PY="$COMFY/venv/bin/python"
     [ -x "$PY" ] || PY="$(command -v python3)"
     "$PY" "$HERE/scripts/fix_deps.py" --requirements "$COMFY/requirements.txt" "${@:2}"
+    ;;
+
+  model)
+    if [ -z "${2:-}" ]; then
+      echo "使い方: CIVITAI_TOKEN=xxxx bash go.sh model <URL> [--name NAME]"
+      exit 1
+    fi
+    python3 "$HERE/scripts/add_model.py" "${@:2}" --comfy "$COMFY"
     ;;
 
   lora)
@@ -234,6 +243,6 @@ MSG
     ;;
 
   *)
-    sed -n '2,20p' "${BASH_SOURCE[0]}"
+    sed -n '2,22p' "${BASH_SOURCE[0]}"
     ;;
 esac

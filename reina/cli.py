@@ -75,6 +75,16 @@ def _make_client(cfg, args: argparse.Namespace) -> ComfyClient:
     )
 
 
+def _load_with_model(args: argparse.Namespace):
+    """config を読み、--model があれば今回だけ本体モデルを差し替える。"""
+    cfg = load_config(args.config)
+    model = getattr(args, "model", None)
+    if model:
+        cfg.models["unet_gguf"] = model
+        _log(f"本体モデル: {model}（今回のみ）")
+    return cfg
+
+
 def _preset(name: str) -> Path:
     """presets/<name>.yaml があればそれを、無ければ <name>.example.yaml を使う。
 
@@ -326,7 +336,7 @@ def _run_jobs(
     reference_paths: list[str],
 ) -> int:
     scene_refs = [_scene_ref(v) for v in (getattr(args, "scene_ref", None) or [])]
-    cfg = load_config(args.config)
+    cfg = _load_with_model(args)
     client = _make_client(cfg, args)
     loras = cfg.loras
     lora_strength = getattr(args, "lora_strength", None)
@@ -542,7 +552,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
     _log(f"修正する画像: {target}")
 
     paths = [str(target)]
-    cfg = load_config(args.config)
+    cfg = _load_with_model(args)
     client = _make_client(cfg, args)
     loras = [dict(l, strength=args.lora_strength) for l in cfg.loras]
     builder = WorkflowBuilder(cfg.models, cfg.defaults, loras)
@@ -719,6 +729,11 @@ def cmd_video(args: argparse.Namespace) -> int:
 
 def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", help="config.yaml のパス")
+    parser.add_argument(
+        "--model",
+        help="今回だけ使う本体モデル（models/unet か models/diffusion_models のファイル名）。"
+             "config.yaml の models.unet_gguf は変更しない",
+    )
     parser.add_argument(
         "--server",
         help="ComfyUI の URL。例: https://<POD_ID>-8188.proxy.runpod.net（環境変数 REINA_COMFY_URL でも可）",

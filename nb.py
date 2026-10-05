@@ -27,6 +27,10 @@
     ref_limit()                                      # 参照画像の上限を確認
     add_lora("https://huggingface.co/xxx/yyy/resolve/main/reina_v1.safetensors")  # LoRA追加
     set_lora_strength(0.5)                            # 登録済みLoRAの強度を恒久的に変更
+    use_model()                                      # 本体モデルの一覧と今のモデル
+    use_model("qwen_image_2.1_bf16.safetensors")     # 本体モデルを切り替える
+    gen("...", ref=R, model="xxx.safetensors")       # 今回だけ別の本体モデルで生成
+    add_model("https://civitai.com/api/download/models/123", token="...")  # 本体モデルを追加
     gen("...", ref=R, lora_strength=0.5)              # 今回の生成だけ強度を変更
     compare("...", ref=R, lora_strength=[0.0, 0.5, 0.85])  # 強度違いを並べて比較
 
@@ -289,6 +293,62 @@ def add_lora(url: str, name: str | None = None, strength: float = 0.85, replace:
     cmd = f"cd {shlex.quote(ROOT)} && {shlex.join([sys.executable, *args])}"
     proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     print((proc.stdout + proc.stderr).strip())
+
+
+def add_model(url: str, name: str | None = None, token: str | None = None) -> None:
+    """本体モデル（.gguf / .safetensors）を URL からダウンロードして ComfyUI に置く。
+
+    Civitai はログインが必要なことが多いので token= に API キーを渡す
+    （環境変数 CIVITAI_TOKEN でも可）。置いたあとは use_model() で切り替える。
+    """
+    comfy = os.environ.get("REINA_COMFY_DIR", "/workspace/ComfyUI")
+    args = [os.path.join(ROOT, "scripts", "add_model.py"), url, "--comfy", comfy]
+    if name:
+        args += ["--name", name]
+    env = dict(os.environ, **({"CIVITAI_TOKEN": token} if token else {}))
+    subprocess.run([sys.executable, *args], env=env)
+
+
+def use_model(name: str | None = None) -> None:
+    """本体モデルを切り替える（config.yaml の models.unet_gguf を書き換える）。
+
+    name を省略すると、置いてあるモデルの一覧と今使っているものを表示する。
+    1回だけ試すなら gen(..., model="ファイル名")。
+        use_model()                                  # 一覧
+        use_model("qwen_image_2.1_bf16.safetensors")  # 切り替え
+    """
+    import yaml
+
+    comfy = os.environ.get("REINA_COMFY_DIR", "/workspace/ComfyUI")
+    config_path = os.path.join(ROOT, "config.yaml")
+    data = {}
+    if os.path.exists(config_path):
+        with open(config_path, encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+    models = data.setdefault("models", {})
+    if name is None:
+        sys.path.insert(0, ROOT)
+        from reina.config import load_config
+
+        current = load_config(config_path if os.path.exists(config_path) else None).models["unet_gguf"]
+        for folder in ("unet", "diffusion_models"):
+            for path in sorted(glob.glob(f"{comfy}/models/{folder}/*")):
+                base = os.path.basename(path)
+                if not base.endswith((".gguf", ".safetensors")) or base.startswith("minimax_h3"):
+                    continue
+                mark = "*" if base == current else " "
+                print(f" {mark} {base:60s} {os.path.getsize(path) / 1e9:5.1f} GB  ({folder})")
+        print(f"\n今の本体モデル: {current}")
+        return
+    found = [p for f in ("unet", "diffusion_models") for p in glob.glob(f"{comfy}/models/{f}/{name}")]
+    if not found:
+        print(f"'{name}' が models/unet にも models/diffusion_models にもありません。use_model() で一覧を確認してください")
+        return
+    previous = models.get("unet_gguf")
+    models["unet_gguf"] = name
+    with open(config_path, "w", encoding="utf-8") as fh:
+        yaml.safe_dump(data, fh, allow_unicode=True, sort_keys=False)
+    print(f"本体モデルを切り替えました: {previous or '(既定)'} → {name}")
 
 
 def set_lora_strength(strength: float, name: str | None = None) -> None:
