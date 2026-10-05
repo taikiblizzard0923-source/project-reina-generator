@@ -82,6 +82,7 @@ DEFAULTS: dict[str, Any] = {
         "scheduler_r2v": "simple",
         # match: 参照画像を生成サイズに縮める（速い） / max: 大きいまま（同一性は強いが遅い）
         "ref_image_size": "match",
+        "lang": "Japanese",
     },
 }
 

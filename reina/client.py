@@ -274,6 +274,13 @@ class ComfyClient:
         suffix = f" (WebSocket 接続不可: {note})" if note else ""
         raise ComfyError(f"タイムアウト ({self.timeout}s): prompt_id={prompt_id}{suffix}")
 
+    def free(self) -> None:
+        """読み込み済みのモデルを VRAM から外す（次に使うモデルが丸ごと載るように）。"""
+        resp = self.session.post(
+            f"{self.base_url}/free", json={"unload_models": True, "free_memory": True}, timeout=60
+        )
+        resp.raise_for_status()
+
     def history(self, prompt_id: str) -> dict[str, Any]:
         resp = self.session.get(f"{self.base_url}/history/{prompt_id}", timeout=60)
         resp.raise_for_status()

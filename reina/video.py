@@ -65,7 +65,7 @@ def reference_prompt(
     voice: str | None = None,
     sound: str | None = None,
     music: str | None = None,
-    lang: str = "English",
+    lang: str = "Japanese",
 ) -> str:
     """ref2va 用。参照写真はすべて同じ1人（<Subject 1>）として定義し、顔だけを保持させる。"""
     which = [ORDINALS[i] for i in range(count)]
@@ -100,7 +100,7 @@ def image_prompt(
     voice: str | None = None,
     sound: str | None = None,
     music: str | None = None,
-    lang: str = "English",
+    lang: str = "Japanese",
 ) -> str:
     """fl2va 用。<Picture 1>（最初のフレーム）を 0 秒目として完全に参照させる。"""
     scene = scene.strip().rstrip(".")

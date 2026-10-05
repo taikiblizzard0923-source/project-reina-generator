@@ -349,24 +349,27 @@ bash go.sh h3        # モデル取得（バックグラウンド）。終わっ
 
 ```python
 # 直前に生成した画像を最初のフレームにして動かす
-video("she turns to the camera and laughs", say="Hi!",
+video("she turns to the camera and laughs", say="こんにちは！",
       voice="a calm, slightly low adult female voice", sound="poolside chatter, water splashing")
 
 # 参照写真から静止画を作り、それを動かす（顔が一番本人に近い。おすすめ）
 clip("walking along a crowded poolside toward the camera, wearing a black bikini",
      "she keeps walking toward the camera and waves",
-     ref=["input/face.png", "input/side.png"], say="Hi!", sound="crowd chatter", seconds=3)
+     ref=["input/face.png", "input/side.png"], say="こんにちは！", sound="crowd chatter", seconds=3)
 
 # 参照写真（顔の写真）の人物が出る動画を直接作る（速いが顔はやや離れる）
 video("walking along a crowded poolside, wearing a black bikini, she waves",
-      ref=["input/face.png", "input/side.png"], say="Hi!", sound="crowd chatter", seconds=5)
+      ref=["input/face.png", "input/side.png"], say="こんにちは！", sound="crowd chatter", seconds=5)
 ```
 
 第1引数には場面・動き・カメラを英語で書き、音は `say=`（セリフ）・`voice=`（声の特徴）・
-`lang=`（セリフの言語。既定 English）・`sound=`（環境音）・`music=`（BGM）で分けて渡します。
+`lang=`（セリフの言語。既定 Japanese）・`sound=`（環境音）・`music=`（BGM）で分けて渡します。
 指示文は H3 の学習時の書式（`subject_definitions:` / `detailed_description:` /
-`overall_soundscape:` など、セリフは `<d>[English] …</d>`）に自動で組み立てます。
+`overall_soundscape:` など、セリフは `<d>[Japanese] …</d>`）に自動で組み立てます。
 `raw=True` なら第1引数をそのまま渡します。
+`clip()` は静止画を作る前と動画にする前に `free()`（モデルを VRAM から外す）を自動で呼びます。
+静止画のモデルが残ったままだと H3 の一部がメインメモリに逃がされ、4ステップで 25 秒が 150 秒になります。
+`gen()` と `video()` を別々に交互に使うときは、間で `free()` を呼んでください。
 既定は高速化 LoRA（lightx2v/Minimax-h3-Turbo）で、静止画からは4ステップ（v1.1 768p）、
 参照写真からは8ステップ（Ref2VA v1.0 768p）、0.4 メガピクセルです。サンプラは配布元どおり
 euler・simple で、LoRA ごとの学習時の shift（768p 版は映像6 / 音声3）を自動で合わせます。

@@ -613,6 +613,18 @@ def _aspect(value: str) -> tuple[float, float]:
     return float(w), float(h)
 
 
+def cmd_free(args: argparse.Namespace) -> int:
+    """ComfyUI が抱えているモデルを VRAM から外す。
+
+    静止画（Qwen-Image）と動画（MiniMax H3）を交互に使うと、前のモデルが VRAM に残り、
+    次のモデルの一部がメインメモリに逃がされて数倍遅くなる（4ステップで 25s → 150s）。
+    """
+    cfg = load_config(args.config)
+    _make_client(cfg, args).free()
+    _log("モデルを VRAM から外しました")
+    return 0
+
+
 def cmd_video(args: argparse.Namespace) -> int:
     """MiniMax H3 で音声付き動画を作る。
 
@@ -627,7 +639,8 @@ def cmd_video(args: argparse.Namespace) -> int:
     megapixels = args.megapixels if args.megapixels is not None else float(video["megapixels"])
     turbo = False if args.no_turbo else None
     references = list(args.reference or [])
-    audio = dict(say=args.say, voice=args.voice, sound=args.sound, music=args.music, lang=args.lang)
+    audio = dict(say=args.say, voice=args.voice, sound=args.sound, music=args.music,
+                 lang=args.lang or video.get("lang", "Japanese"))
 
     if references:
         mode, paths = "ref2va", references
@@ -780,6 +793,11 @@ def build_parser() -> argparse.ArgumentParser:
     refs.add_argument("--timeout", type=int, default=120)
     refs.set_defaults(func=cmd_refs)
 
+    free = sub.add_parser("free", help="読み込み済みのモデルを VRAM から外す（画像と動画を切り替えるとき）")
+    free.add_argument("--config")
+    free.add_argument("--server")
+    free.set_defaults(func=cmd_free)
+
     gen = sub.add_parser("generate", help="プロンプト1件を生成")
     gen.add_argument("prompt", help="シーン説明（服装・場所・光・構図など）")
     gen.add_argument("--name", default="single", help="出力ファイル名の識別子")
@@ -840,7 +858,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="高速化 LoRA を今回だけ差し替える（models/loras のファイル名。shift は名前から自動: 768p なら 6/3、それ以外 12/3）",
     )
     video.add_argument("--say", help="セリフ（例: Hi, come over here!）")
-    video.add_argument("--lang", default="English", help="セリフの言語（既定 English。Japanese なども可）")
+    video.add_argument("--lang", help="セリフの言語（既定は config の video.lang = Japanese。English なども可）")
     video.add_argument("--voice", help="声の特徴（例: a calm, low-pitched adult female voice）")
     video.add_argument("--sound", help="環境音・効果音（例: crowd chatter, water splashing）")
     video.add_argument("--music", help="BGM（省略時は無し）")

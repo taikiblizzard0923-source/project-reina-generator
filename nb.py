@@ -11,9 +11,10 @@
     gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
     edit("Change the T-shirt to navy blue.")          # 直前の画像を修正指示で直す
-    video("she turns and laughs", say="Hi!")          # 直前の画像を動画にする（MiniMax H3）
+    video("she turns and laughs", say="こんにちは！")          # 直前の画像を動画にする（MiniMax H3）
     video("walking on a beach", ref=["input/face.png", "input/side.png"], sound="waves")  # 参照写真から動画
-    clip("on a beach, white sundress", "she walks and waves", ref=R, say="Hi!")  # 静止画→動画（顔が一番似る）
+    clip("on a beach, white sundress", "she walks and waves", ref=R, say="こんにちは！")  # 静止画→動画（顔が一番似る）
+    free()                                           # VRAM のモデルを外す（画像↔動画の切り替え前に）
     compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])   # cfgだけ変えて比較
     compare("standing in a studio", ref=R, steps=[12, 20, 30])    # stepsだけ変えて比較
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
@@ -457,12 +458,12 @@ def video(
     ref を渡すと参照写真の人物が出る動画、渡さなければ image（省略時は最後に生成した
     画像）を最初のフレームにして動かす。prompt には場面・動き・カメラを書き、音は別に指定する
     （H3 の学習時の書式に自動で組み立てる。raw=True ならそのまま渡す）:
-        say=   セリフ           voice= 声の特徴      lang=  セリフの言語（既定 English）
+        say=   セリフ           voice= 声の特徴      lang=  セリフの言語（既定 Japanese）
         sound= 環境音・効果音   music= BGM（省略時は無し）
-        video("she turns toward the camera and smiles", say="Hi!",
+        video("she turns toward the camera and smiles", say="こんにちは！",
               voice="a calm, slightly low adult female voice", sound="quiet room tone")
         video("walking along a crowded poolside, wearing a black bikini, she waves",
-              ref=["input/face.png", "input/side.png"], say="Hi!", sound="crowd chatter, splashing")
+              ref=["input/face.png", "input/side.png"], say="こんにちは！", sound="crowd chatter, splashing")
         # 高速化 LoRA を差し替える（静止画用の最高品質版。8ステップ）
         video("...", lora="minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors", steps=8)
     """
@@ -491,15 +492,28 @@ def clip(
     video_opts は video() に、image_opts は gen() にそのまま渡る。
         clip("walking along a crowded poolside toward the camera, wearing a black bikini",
              "she keeps walking toward the camera and waves", ref=R, seconds=3,
-             say="Hi!", voice="a calm, slightly low adult female voice", sound="crowd chatter")
+             say="こんにちは！", voice="a calm, slightly low adult female voice", sound="crowd chatter")
     """
     image_opts = dict(image_opts or {})
     if seed is not None:
         image_opts.setdefault("seed", seed)
         video_opts.setdefault("seed", seed)
+    # 前のモデルが VRAM に残ったままだと、次のモデルが溢れて数倍遅くなる
+    free()
     if not gen(scene, ref=ref, **image_opts):
         return False
+    free()
     return video(action, **video_opts)
+
+
+def free() -> bool:
+    """読み込み済みのモデルを VRAM から外す。gen() と video() を交互に使う前に呼ぶと速い。"""
+    result = subprocess.run(
+        [sys.executable, "-m", "reina", "free"], cwd=ROOT, capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print(result.stdout + result.stderr)
+    return result.returncode == 0
 
 
 def compare(prompt: str, ref=None, seed: int | None = None, label_fmt: str | None = None, **grid) -> None:
