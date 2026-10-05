@@ -50,19 +50,30 @@ DEFAULTS: dict[str, Any] = {
             "text_encoder": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
             "video_vae": "minimax_h3_video_vae_fp16.safetensors",
             "audio_vae": "minimax_h3_audio_vae_fp32.safetensors",
-            "fl2va_turbo_lora": "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
-            "ref2va_turbo_lora": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
         },
         "seconds": 5,
         "megapixels": 0.4,
-        # 高速化 LoRA（4ステップで生成）。false にすると LoRA 無しの steps で回す
+        # 高速化 LoRA（ModelTC/Minimax-H3-Turbo の蒸留）。false で LoRA 無しの通常サンプリング。
+        # LoRA ごとに学習時の shift とステップ数が決まっていて、合わせないと仕上がりきらない。
+        # サンプラは配布元の ComfyUI ワークフローどおり euler（res_multistep だと4ステップで
+        # 参照写真が半透明で重なった絵になった）
         "turbo": True,
-        "turbo_steps": 4,
+        "turbo_sampler": "euler",
+        "turbo_settings": {
+            "fl2va": {
+                "lora": "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+                "steps": 4, "shift_video": 6.0, "shift_audio": 3.0,
+            },
+            "ref2va": {
+                "lora": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
+                "steps": 4, "shift_video": 12.0, "shift_audio": 3.0,
+            },
+        },
+        # 高速化なしのとき（公式テンプレートの値。shift は H3 本体の既定）
         "steps": 20,
         "sampler": "res_multistep",
-        # 公式テンプレートの既定は両方 simple。テンプレートの注記には「ref2va は beta / normal
-        # の方が良い」とあるが、4ステップの高速化 LoRA と beta の組み合わせでは仕上がりきらず、
-        # 参照写真が半透明で重なった絵になった
+        "shift_video": 12.0,
+        "shift_audio": 3.0,
         "scheduler_i2v": "simple",
         "scheduler_r2v": "simple",
         # match: 参照画像を生成サイズに縮める（速い） / max: 大きいまま（同一性は強いが遅い）

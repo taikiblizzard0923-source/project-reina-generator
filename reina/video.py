@@ -1,10 +1,10 @@
 """MiniMax H3 で音声付き動画を作る API 形式のワークフロー。
 
-ComfyUI 同梱の公式テンプレート（video_minimax_h3_i2v / video_minimax_h3_r2v）と
-同じ繋ぎ方にしてある:
-    UNETLoader → (turbo LoRA) → BasicScheduler / BasicGuider
+ComfyUI 同梱の公式テンプレート（video_minimax_h3_i2v / video_minimax_h3_r2v）と、
+高速化 LoRA の配布元（ModelTC/Minimax-H3-Turbo）の ComfyUI ワークフローと同じ繋ぎ方:
+    UNETLoader → (turbo LoRA) → MiniMaxH3SigmaShift → BasicScheduler / BasicGuider
     CLIPLoader(type=minimax) + 映像VAE (+ 音声VAE) → MiniMaxH3ImageToVideo / ReferenceToVideo
-    → SamplerCustomAdvanced(res_multistep) → VAEDecode + VAEDecodeAudio → CreateVideo → SaveVideo
+    → SamplerCustomAdvanced（高速化あり euler / なし res_multistep）→ VAEDecode + VAEDecodeAudio → CreateVideo → SaveVideo
 cfg は無い（BasicGuider）。音声はプロンプトから同時に生成される。
 """
 
@@ -57,7 +57,9 @@ class VideoWorkflowBuilder:
         self.models = video["models"]
         self.video = video
 
-    def _base(self, graph: Graph, mode: str, steps: int | None, turbo: bool | None) -> tuple[list, list, list, list, int]:
+    def _base(
+        self, graph: Graph, mode: str, steps: int | None, turbo: bool | None
+    ) -> tuple[list, list, list, list, int, str]:
         turbo = self.video.get("turbo", True) if turbo is None else turbo
         graph["1"] = {
             "class_type": "UNETLoader",
@@ -65,30 +67,42 @@ class VideoWorkflowBuilder:
         }
         model_ref: list = ["1", 0]
         if turbo:
+            settings = self.video["turbo_settings"][mode]
             graph["2"] = {
                 "class_type": "LoraLoaderModelOnly",
-                "inputs": {
-                    "model": model_ref,
-                    "lora_name": self.models[f"{mode}_turbo_lora"],
-                    "strength_model": 1.0,
-                },
+                "inputs": {"model": model_ref, "lora_name": settings["lora"], "strength_model": 1.0},
             }
             model_ref = ["2", 0]
+            sampler = self.video["turbo_sampler"]
+        else:
+            settings = self.video
+            sampler = self.video["sampler"]
+        # 映像の shift がサンプラのシグマ列を決め、音声の shift は DiT 側で使われる。
+        # スケジューラとガイダの両方にこのノードの出力を渡す（配布元の i2v ワークフローと同じ）
+        graph["7"] = {
+            "class_type": "MiniMaxH3SigmaShift",
+            "inputs": {
+                "model": model_ref,
+                "shift_video": float(settings["shift_video"]),
+                "shift_audio": float(settings["shift_audio"]),
+            },
+        }
+        model_ref = ["7", 0]
         if steps is None:
-            steps = int(self.video["turbo_steps"] if turbo else self.video["steps"])
+            steps = int(settings["steps"])
         graph["3"] = {
             "class_type": "CLIPLoader",
             "inputs": {"clip_name": self.models["text_encoder"], "type": "minimax", "device": "default"},
         }
         graph["4"] = {"class_type": "VAELoader", "inputs": {"vae_name": self.models["video_vae"]}}
         graph["5"] = {"class_type": "VAELoader", "inputs": {"vae_name": self.models["audio_vae"]}}
-        return model_ref, ["3", 0], ["4", 0], ["5", 0], steps
+        return model_ref, ["3", 0], ["4", 0], ["5", 0], steps, sampler
 
     def _sample_and_save(
-        self, graph: Graph, model_ref: list, scheduler: str, steps: int, seed: int, prefix: str
+        self, graph: Graph, model_ref: list, sampler: str, scheduler: str, steps: int, seed: int, prefix: str
     ) -> Graph:
         graph["11"] = {"class_type": "RandomNoise", "inputs": {"noise_seed": int(seed)}}
-        graph["12"] = {"class_type": "KSamplerSelect", "inputs": {"sampler_name": self.video["sampler"]}}
+        graph["12"] = {"class_type": "KSamplerSelect", "inputs": {"sampler_name": sampler}}
         graph["13"] = {
             "class_type": "BasicScheduler",
             "inputs": {"model": model_ref, "scheduler": scheduler, "steps": int(steps), "denoise": 1.0},
@@ -132,7 +146,7 @@ class VideoWorkflowBuilder:
     ) -> Graph:
         """静止画を最初のフレームにして動かす（fl2va）。first_frame は ComfyUI input/ の名前。"""
         graph: Graph = {}
-        model_ref, clip_ref, vae_ref, _, steps = self._base(graph, "fl2va", steps, turbo)
+        model_ref, clip_ref, vae_ref, _, steps, sampler = self._base(graph, "fl2va", steps, turbo)
         graph["6"] = {"class_type": "LoadImage", "inputs": {"image": first_frame}}
         graph["10"] = {
             "class_type": "MiniMaxH3ImageToVideo",
@@ -146,7 +160,9 @@ class VideoWorkflowBuilder:
                 "length": frame_count(seconds),
             },
         }
-        return self._sample_and_save(graph, model_ref, scheduler or self.video["scheduler_i2v"], steps, seed, prefix)
+        return self._sample_and_save(
+            graph, model_ref, sampler, scheduler or self.video["scheduler_i2v"], steps, seed, prefix
+        )
 
     def reference_to_video(
         self,
@@ -167,7 +183,7 @@ class VideoWorkflowBuilder:
         if len(references) > MAX_REFERENCE_IMAGES:
             raise ValueError(f"参照画像は {MAX_REFERENCE_IMAGES} 枚までです")
         graph: Graph = {}
-        model_ref, clip_ref, vae_ref, audio_vae_ref, steps = self._base(graph, "ref2va", steps, turbo)
+        model_ref, clip_ref, vae_ref, audio_vae_ref, steps, sampler = self._base(graph, "ref2va", steps, turbo)
         loaded = []
         for index, name in enumerate(references):
             node_id = f"6{index}"
@@ -187,4 +203,6 @@ class VideoWorkflowBuilder:
                 "ref_image_size": self.video.get("ref_image_size", "match"),
             },
         }
-        return self._sample_and_save(graph, model_ref, scheduler or self.video["scheduler_r2v"], steps, seed, prefix)
+        return self._sample_and_save(
+            graph, model_ref, sampler, scheduler or self.video["scheduler_r2v"], steps, seed, prefix
+        )

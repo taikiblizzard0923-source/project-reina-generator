@@ -67,5 +67,5 @@ loras: []
 video:
   seconds: 5          # 長さ（秒）。17k+5 フレームに切り上げられる
   megapixels: 0.4     # 縦長なら 544x800 程度。上限は短辺 768 / 長辺 1344
-  turbo: true         # 高速化 LoRA（4ステップ）。false で 20 ステップ
+  turbo: true         # 高速化 LoRA（4ステップ・euler）。false で 20 ステップ（res_multistep）
   ref_image_size: "match"   # max にすると参照写真を大きいまま使う（同一性↑・遅い）
