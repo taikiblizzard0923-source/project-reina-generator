@@ -40,15 +40,78 @@ def video_size(aspect_w: float, aspect_h: float, megapixels: float, multiple: in
     )
 
 
-def reference_prompt(scene: str, count: int) -> str:
-    """ref2va 用の指示文。参照は接続順の <Picture N> タグで指す（公式テンプレートの書き方）。"""
-    tags = [f"<Picture {i}>" for i in range(1, count + 1)]
-    faces = tags[0] if count == 1 else ", ".join(tags[:-1]) + " and " + tags[-1]
-    verb = "shows" if count == 1 else "show"
+# 指示文は H3 / Turbo の学習時の書式に合わせる（ModelTC/Minimax-H3-Turbo の
+# ComfyUI ワークフローと COMFYUI_SETUP_AND_INFERENCE.md の例）。
+# セリフは <d>[言語] 本文</d>、音は overall_soundscape、BGM は non_diegetic_music に書く。
+ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth")
+
+
+def _dialogue(say: str | None, lang: str) -> str:
+    return f" <Subject 1> says <d>[{lang}] {say.strip()}</d>" if say else ""
+
+
+def _soundscape(sound: str | None, voice: str | None, say: str | None) -> str:
+    parts = []
+    if say:
+        parts.append(f"<Subject 1> speaks in {voice.strip()}." if voice else "<Subject 1> speaks clearly.")
+    parts.append(sound.strip() if sound else "Natural ambient sound that matches the scene.")
+    return " ".join(parts)
+
+
+def reference_prompt(
+    scene: str,
+    count: int,
+    say: str | None = None,
+    voice: str | None = None,
+    sound: str | None = None,
+    music: str | None = None,
+    lang: str = "English",
+) -> str:
+    """ref2va 用。参照写真はすべて同じ1人（<Subject 1>）として定義し、顔だけを保持させる。"""
+    which = [ORDINALS[i] for i in range(count)]
+    images = (
+        f"{which[0]} reference image" if count == 1
+        else ", ".join(which[:-1]) + f" and {which[-1]} reference images"
+    )
+    scene = scene.strip().rstrip(".")
     return (
-        f"{faces} {verb} one and the same person, who appears only once in the video. "
-        f"Use {faces} only for the person's face and identity, "
-        f"not for the clothing, pose or background. {scene.strip()}"
+        "subject_definitions:\n"
+        f"<Subject 1> is the person shown in the {images}: one and the same person "
+        "seen from different angles.\n\n"
+        "summary:\n"
+        f"[reference generation] The target video shows <Subject 1>: {scene}. "
+        "The reference images guide only <Subject 1>'s face and identity.\n\n"
+        "retention_analysis:\n"
+        "<Subject 1> (appears in [Shot 1]): fully_preserved - the facial features and identity "
+        "are retained; clothing, hairstyle and surroundings follow the description, "
+        "not the reference images. <Subject 1> appears only once.\n\n"
+        "detailed_description:\n"
+        f"[Shot 1] {scene}.{_dialogue(say, lang)}\n\n"
+        "overall_soundscape:\n"
+        f"{_soundscape(sound, voice, say)}\n\n"
+        "non_diegetic_music:\n"
+        f"{music.strip() if music else 'N/A'}"
+    )
+
+
+def image_prompt(
+    scene: str,
+    say: str | None = None,
+    voice: str | None = None,
+    sound: str | None = None,
+    music: str | None = None,
+    lang: str = "English",
+) -> str:
+    """fl2va 用。<Picture 1>（最初のフレーム）を 0 秒目として完全に参照させる。"""
+    scene = scene.strip().rstrip(".")
+    return (
+        "integrated_multimodal_description: For the target video, at 0.00 seconds into the target "
+        "video, <Picture 1> (from [Shot 1]) is fully referenced.\n\n"
+        "[Shot 1] Preserve the subject, clothing, and scene from <Picture 1>, then: "
+        f"{scene}.{_dialogue(say, lang).replace('<Subject 1>', 'The person')}\n\n"
+        "overall_soundscape: "
+        f"{_soundscape(sound, voice, say).replace('<Subject 1>', 'The person')}\n\n"
+        f"non_diegetic_music: {music.strip() if music else 'N/A'}"
     )
 
 

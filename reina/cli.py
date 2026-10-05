@@ -26,7 +26,7 @@ from .prompts import (
     load_scenes,
     scene_overrides,
 )
-from .video import VideoWorkflowBuilder, frame_count, reference_prompt, video_size
+from .video import VideoWorkflowBuilder, frame_count, image_prompt, reference_prompt, video_size
 from .workflows import (
     COMBINED_ENCODERS,
     EDIT_ENCODER_CANDIDATES,
@@ -627,11 +627,12 @@ def cmd_video(args: argparse.Namespace) -> int:
     megapixels = args.megapixels if args.megapixels is not None else float(video["megapixels"])
     turbo = False if args.no_turbo else None
     references = list(args.reference or [])
+    audio = dict(say=args.say, voice=args.voice, sound=args.sound, music=args.music, lang=args.lang)
 
     if references:
         mode, paths = "ref2va", references
         aspect = _aspect(args.aspect)
-        prompt = args.prompt if args.raw else reference_prompt(args.prompt, len(references))
+        prompt = args.prompt if args.raw else reference_prompt(args.prompt, len(references), **audio)
     else:
         first = Path(args.image) if args.image else _latest_output()
         if first is None or not first.exists():
@@ -641,7 +642,8 @@ def cmd_video(args: argparse.Namespace) -> int:
 
         with Image.open(first) as im:
             aspect = im.size
-        mode, paths, prompt = "fl2va", [str(first)], args.prompt
+        mode, paths = "fl2va", [str(first)]
+        prompt = args.prompt if args.raw else image_prompt(args.prompt, **audio)
         _log(f"最初のフレーム: {first}")
     width, height = (args.width, args.height) if args.width and args.height else video_size(*aspect, megapixels)
     _log(f"{mode}  {width}x{height}  {seconds}s ({frame_count(seconds)} フレーム)")
@@ -814,7 +816,7 @@ def build_parser() -> argparse.ArgumentParser:
     edit.set_defaults(func=cmd_edit)
 
     video = sub.add_parser("video", help="MiniMax H3 で音声付き動画を作る")
-    video.add_argument("prompt", help="動きやカメラ、音（セリフ・効果音・音楽）の説明")
+    video.add_argument("prompt", help="場面・動き・カメラの説明（音は --say / --voice / --sound / --music で）")
     video.add_argument("--image", help="最初のフレームにする画像（省略時は最後に生成した画像）")
     video.add_argument(
         "-r", "--reference", action="append",
@@ -832,7 +834,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--lora",
         help="高速化 LoRA を今回だけ差し替える（models/loras のファイル名。shift は名前から自動: 768p なら 6/3、それ以外 12/3）",
     )
-    video.add_argument("--raw", action="store_true", help="-r のとき、人物についての定型文を付けない")
+    video.add_argument("--say", help="セリフ（例: Hi, come over here!）")
+    video.add_argument("--lang", default="English", help="セリフの言語（既定 English。Japanese なども可）")
+    video.add_argument("--voice", help="声の特徴（例: a calm, low-pitched adult female voice）")
+    video.add_argument("--sound", help="環境音・効果音（例: crowd chatter, water splashing）")
+    video.add_argument("--music", help="BGM（省略時は無し）")
+    video.add_argument("--raw", action="store_true", help="プロンプトを書式に組み立てず、そのまま渡す")
     video.add_argument("--seed", type=int)
     video.add_argument("--repeat", type=int, default=1)
     video.add_argument("-o", "--out", help="出力ディレクトリ（既定: output/）")

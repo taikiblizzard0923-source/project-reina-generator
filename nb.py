@@ -11,8 +11,8 @@
     gen("sitting in a cafe", ref="input/me.jpg", keep_pose=True)  # ポーズ・構図も引き継ぐ
     gen("portrait", n=4)                             # 4枚
     edit("Change the T-shirt to navy blue.")          # 直前の画像を修正指示で直す
-    video("She turns and laughs. Audio: chatter.")    # 直前の画像を動画にする（MiniMax H3）
-    video("walking on a beach. Audio: waves.", ref=["input/face.png", "input/side.png"])  # 参照写真から動画
+    video("she turns and laughs", say="Hi!")          # 直前の画像を動画にする（MiniMax H3）
+    video("walking on a beach", ref=["input/face.png", "input/side.png"], sound="waves")  # 参照写真から動画
     compare("standing in a studio", ref=R, cfg=[1.5, 2.0, 3.0])   # cfgだけ変えて比較
     compare("standing in a studio", ref=R, steps=[12, 20, 30])    # stepsだけ変えて比較
     batch(ref="input/me.jpg")                        # presets/scenes.yaml を一括
@@ -454,10 +454,14 @@ def video(
     """MiniMax H3 で音声付き動画を作って表示する。
 
     ref を渡すと参照写真の人物が出る動画、渡さなければ image（省略時は最後に生成した
-    画像）を最初のフレームにして動かす。音（セリフ・効果音・音楽）もプロンプトに書く。
-        video("She turns to the camera and laughs. Audio: poolside chatter.")
-        video("walking along a crowded poolside, wearing a black bikini. Audio: splashing.",
-              ref=["input/face.png", "input/side.png"], seconds=5)
+    画像）を最初のフレームにして動かす。prompt には場面・動き・カメラを書き、音は別に指定する
+    （H3 の学習時の書式に自動で組み立てる。raw=True ならそのまま渡す）:
+        say=   セリフ           voice= 声の特徴      lang=  セリフの言語（既定 English）
+        sound= 環境音・効果音   music= BGM（省略時は無し）
+        video("she turns toward the camera and smiles", say="Hi!",
+              voice="a calm, slightly low adult female voice", sound="quiet room tone")
+        video("walking along a crowded poolside, wearing a black bikini, she waves",
+              ref=["input/face.png", "input/side.png"], say="Hi!", sound="crowd chatter, splashing")
         # 高速化 LoRA を差し替える（静止画用の最高品質版。8ステップ）
         video("...", lora="minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors", steps=8)
     """
