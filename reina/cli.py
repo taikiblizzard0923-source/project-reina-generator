@@ -652,7 +652,8 @@ def cmd_video(args: argparse.Namespace) -> int:
     for take in range(args.repeat):
         seed = args.seed + take if args.seed is not None else random_seed()
         common = dict(width=width, height=height, seconds=seconds, seed=seed,
-                      steps=args.steps, turbo=turbo, prefix="reina/video", scheduler=args.scheduler)
+                      steps=args.steps, turbo=turbo, prefix="reina/video", scheduler=args.scheduler,
+                      lora=args.lora)
         if mode == "ref2va":
             graph = builder.reference_to_video(prompt, uploaded, **common)
         else:
@@ -685,6 +686,8 @@ def cmd_video(args: argparse.Namespace) -> int:
             "turbo": turbo is not False and bool(video.get("turbo", True)),
             "steps": args.steps,
             "scheduler": graph["13"]["inputs"]["scheduler"],
+            "lora": graph.get("2", {}).get("inputs", {}).get("lora_name"),
+            "shift": [graph["7"]["inputs"]["shift_video"], graph["7"]["inputs"]["shift_audio"]],
             "models": video["models"],
         }
         for path in _save(out_dir, stem, files, meta):
@@ -825,6 +828,10 @@ def build_parser() -> argparse.ArgumentParser:
     video.add_argument("--steps", type=int, help="ステップ数（既定: 高速化LoRAありで4、なしで20）")
     video.add_argument("--no-turbo", action="store_true", dest="no_turbo", help="高速化 LoRA を使わない")
     video.add_argument("--scheduler", help="スケジューラ（simple / beta / normal など。既定は config の video）")
+    video.add_argument(
+        "--lora",
+        help="高速化 LoRA を今回だけ差し替える（models/loras のファイル名。shift は名前から自動: 768p なら 6/3、それ以外 12/3）",
+    )
     video.add_argument("--raw", action="store_true", help="-r のとき、人物についての定型文を付けない")
     video.add_argument("--seed", type=int)
     video.add_argument("--repeat", type=int, default=1)

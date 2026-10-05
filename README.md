@@ -357,7 +357,11 @@ video("walking along a crowded poolside, wearing a black bikini. Audio: crowd ch
 ```
 
 プロンプトには動き・カメラ・音（セリフ・効果音・音楽）をまとめて英語で書きます。
-既定は高速化 LoRA で4ステップ、0.4 メガピクセルです（`no_turbo=True` で20ステップ）。
+既定は高速化 LoRA（lightx2v/Minimax-h3-Turbo）で、静止画からは4ステップ（v1.1 768p）、
+参照写真からは8ステップ（Ref2VA v1.0 768p）、0.4 メガピクセルです。サンプラは配布元どおり
+euler・simple で、LoRA ごとの学習時の shift（768p 版は映像6 / 音声3）を自動で合わせます。
+`no_turbo=True` で高速化なし（res_multistep・20ステップ）、`lora=` で LoRA を差し替えられます
+（静止画用の最高品質版は `minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors` と `steps=8`）。
 
 ## 4. 同一性（顔が似ない）を上げる
 

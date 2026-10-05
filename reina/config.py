@@ -59,14 +59,18 @@ DEFAULTS: dict[str, Any] = {
         # 参照写真が半透明で重なった絵になった）
         "turbo": True,
         "turbo_sampler": "euler",
+        # 2026-10 時点の lightx2v/Minimax-h3-Turbo の推奨（768p 版はどれも shift 6/3）:
+        #   fl2v 4step v1.1 768p … 映像重視（v1.2 は音声が改善したが映像がやや落ちるとの声）
+        #   fl2v 8step v1.0 768p … 最高品質・2倍遅い / ref2v 8step v1.0 768p … ref2va の正式版
+        #   （ref2v 4step v0.1 は 544p・shift 12/3 の試験版）
         "turbo_settings": {
             "fl2va": {
-                "lora": "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+                "lora": "minimax_h3_fl2v_turbo_4step_v1.1_768p_comfyui_bf16.safetensors",
                 "steps": 4, "shift_video": 6.0, "shift_audio": 3.0,
             },
             "ref2va": {
-                "lora": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
-                "steps": 4, "shift_video": 12.0, "shift_audio": 3.0,
+                "lora": "minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
+                "steps": 8, "shift_video": 6.0, "shift_audio": 3.0,
             },
         },
         # 高速化なしのとき（公式テンプレートの値。shift は H3 本体の既定）

@@ -58,7 +58,7 @@ class VideoWorkflowBuilder:
         self.video = video
 
     def _base(
-        self, graph: Graph, mode: str, steps: int | None, turbo: bool | None
+        self, graph: Graph, mode: str, steps: int | None, turbo: bool | None, lora: str | None = None
     ) -> tuple[list, list, list, list, int, str]:
         turbo = self.video.get("turbo", True) if turbo is None else turbo
         graph["1"] = {
@@ -67,10 +67,14 @@ class VideoWorkflowBuilder:
         }
         model_ref: list = ["1", 0]
         if turbo:
-            settings = self.video["turbo_settings"][mode]
+            settings = dict(self.video["turbo_settings"][mode])
+            if lora:
+                # 配布元の一覧では 768p 版は shift 6/3、それ以外（544p）は 12/3 で学習されている
+                settings["shift_video"] = 6.0 if "768p" in lora else 12.0
+                settings["shift_audio"] = 3.0
             graph["2"] = {
                 "class_type": "LoraLoaderModelOnly",
-                "inputs": {"model": model_ref, "lora_name": settings["lora"], "strength_model": 1.0},
+                "inputs": {"model": model_ref, "lora_name": lora or settings["lora"], "strength_model": 1.0},
             }
             model_ref = ["2", 0]
             sampler = self.video["turbo_sampler"]
@@ -143,10 +147,11 @@ class VideoWorkflowBuilder:
         turbo: bool | None = None,
         prefix: str = "reina/video",
         scheduler: str | None = None,
+        lora: str | None = None,
     ) -> Graph:
         """静止画を最初のフレームにして動かす（fl2va）。first_frame は ComfyUI input/ の名前。"""
         graph: Graph = {}
-        model_ref, clip_ref, vae_ref, _, steps, sampler = self._base(graph, "fl2va", steps, turbo)
+        model_ref, clip_ref, vae_ref, _, steps, sampler = self._base(graph, "fl2va", steps, turbo, lora)
         graph["6"] = {"class_type": "LoadImage", "inputs": {"image": first_frame}}
         graph["10"] = {
             "class_type": "MiniMaxH3ImageToVideo",
@@ -176,6 +181,7 @@ class VideoWorkflowBuilder:
         turbo: bool | None = None,
         prefix: str = "reina/video",
         scheduler: str | None = None,
+        lora: str | None = None,
     ) -> Graph:
         """参照写真の人物が出る動画を作る（ref2va）。references は ComfyUI input/ の名前。"""
         if not references:
@@ -183,7 +189,7 @@ class VideoWorkflowBuilder:
         if len(references) > MAX_REFERENCE_IMAGES:
             raise ValueError(f"参照画像は {MAX_REFERENCE_IMAGES} 枚までです")
         graph: Graph = {}
-        model_ref, clip_ref, vae_ref, audio_vae_ref, steps, sampler = self._base(graph, "ref2va", steps, turbo)
+        model_ref, clip_ref, vae_ref, audio_vae_ref, steps, sampler = self._base(graph, "ref2va", steps, turbo, lora)
         loaded = []
         for index, name in enumerate(references):
             node_id = f"6{index}"

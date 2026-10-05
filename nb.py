@@ -458,6 +458,8 @@ def video(
         video("She turns to the camera and laughs. Audio: poolside chatter.")
         video("walking along a crowded poolside, wearing a black bikini. Audio: splashing.",
               ref=["input/face.png", "input/side.png"], seconds=5)
+        # 高速化 LoRA を差し替える（静止画用の最高品質版。8ステップ）
+        video("...", lora="minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors", steps=8)
     """
     args = ["video", prompt, "--repeat", str(n)]
     if image:
