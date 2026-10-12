@@ -3,113 +3,193 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#faf9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>reina clip</title>
 <style>
   :root {
     --bg: #faf9f7; --card: #fff; --fg: #1c1b19; --muted: #6b6862;
-    --line: #e3e0da; --accent: #b4541f; --accent-fg: #fff;
+    --line: #e3e0da; --accent: #b4541f; --accent-fg: #fff; --chip: #f1eee9;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#171614; --card:#201e1b; --fg:#ece9e3; --muted:#9a958c;
-            --line:#332f2a; --accent:#d9743f; --accent-fg:#171614; }
+            --line:#332f2a; --accent:#d9743f; --accent-fg:#171614; --chip:#2a2723; }
   }
-  * { box-sizing: border-box; }
-  body { margin:0; padding:16px; background:var(--bg); color:var(--fg);
-         font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; }
-  h1 { font-size:18px; margin:0 0 4px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { scroll-padding-top: 64px; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.55 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;
+         padding: 0 max(16px, env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
   a { color:var(--accent); }
-  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
-          padding:14px; margin-bottom:14px; }
-  .card.off { opacity:.45; pointer-events:none; }
-  .step { font-size:14px; font-weight:600; margin-bottom:2px; }
-  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
-  input, select, textarea { width:100%; padding:10px; font-size:16px; color:var(--fg);
-          background:var(--bg); border:1px solid var(--line); border-radius:8px; font-family:inherit; }
-  textarea { min-height:72px; resize:vertical; }
+
+  /* 上部: 今どこにいるか */
+  header { position:sticky; top:0; z-index:5; background:var(--bg);
+           margin:0 -16px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+           border-bottom:1px solid var(--line); }
+  .steps { display:flex; gap:6px; }
+  .steps a { flex:1; text-align:center; text-decoration:none; color:var(--muted);
+             font-size:13px; padding:8px 4px; border-radius:999px; background:var(--chip); }
+  .steps a.on { background:var(--accent); color:var(--accent-fg); font-weight:600; }
+  .steps a.done { color:var(--fg); }
+  .status { font-size:12px; color:var(--muted); margin-top:6px; min-height:18px;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  section { padding-top:14px; }
+  h2 { font-size:15px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .off { opacity:.45; pointer-events:none; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 4px; }
+  input, select, textarea { width:100%; padding:12px; font-size:16px; color:var(--fg);
+          background:var(--bg); border:1px solid var(--line); border-radius:10px; font-family:inherit;
+          -webkit-appearance:none; appearance:none; }
+  textarea { min-height:84px; resize:vertical; }
+  select { -webkit-appearance:menulist; appearance:auto; }
   .row { display:flex; gap:10px; }
   .row > * { flex:1; min-width:0; }
-  button { width:100%; padding:14px; font-size:16px; font-weight:600; border:0; margin-top:12px;
-           border-radius:10px; background:var(--accent); color:var(--accent-fg); }
-  button:disabled { opacity:.45; }
-  .imgs { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
-  .imgs label { display:flex; align-items:center; gap:6px; margin:0; padding:7px 10px;
-          border:1px solid var(--line); border-radius:8px; font-size:13px; color:var(--fg); }
-  .imgs input { width:auto; }
-  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:12px; }
-  .bar div { height:100%; width:0; background:var(--accent); transition:width .25s; }
-  .log { white-space:pre-wrap; font:12px/1.5 ui-monospace,monospace; color:var(--muted);
-         max-height:120px; overflow:auto; margin-top:8px; }
-  .err { color:#c0392b; font-size:13px; }
-  .still img, video { width:100%; border-radius:10px; display:block; margin-top:12px; background:#000; }
-  .hist { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:8px; }
-  .hist img { width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:6px;
-              border:3px solid transparent; display:block; cursor:pointer; }
+
+  .chips { display:flex; gap:6px; overflow-x:auto; padding:2px 0 4px; scrollbar-width:none; }
+  .chips::-webkit-scrollbar { display:none; }
+  .chips button, .refs label { flex:none; font-size:13px; padding:7px 12px; border-radius:999px;
+          border:1px solid var(--line); background:var(--chip); color:var(--fg); margin:0; width:auto; font-weight:400; }
+  .refs { display:flex; flex-wrap:wrap; gap:6px; }
+  .refs label { display:flex; align-items:center; gap:6px; }
+  .refs input { width:auto; -webkit-appearance:checkbox; appearance:auto; margin:0; }
+
+  details { margin-top:12px; }
+  summary { font-size:13px; color:var(--accent); cursor:pointer; padding:6px 0; }
+
+  .still { position:relative; }
+  .still img { width:100%; max-height:62vh; object-fit:contain; border-radius:12px; display:block;
+               background:var(--chip); }
+  .hist { display:flex; gap:6px; overflow-x:auto; margin-top:8px; padding-bottom:4px; scrollbar-width:none; }
+  .hist::-webkit-scrollbar { display:none; }
+  .hist img { flex:none; width:64px; height:96px; object-fit:cover; border-radius:8px;
+              border:3px solid transparent; }
   .hist img.sel { border-color:var(--accent); }
-  .acts { display:flex; gap:16px; font-size:13px; margin-top:6px; }
+  .acts { display:flex; gap:18px; font-size:14px; margin-top:8px; }
+  video { width:100%; max-height:70vh; border-radius:12px; display:block; background:#000; margin-top:10px; }
+
+  .bar { height:5px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:12px; display:none; }
+  .bar.show { display:block; }
+  .bar div { height:100%; width:0; background:var(--accent); transition:width .3s; }
+  .log { white-space:pre-wrap; font:12px/1.5 ui-monospace,monospace; color:var(--muted);
+         max-height:90px; overflow:auto; margin-top:6px; }
+  .err { color:#c0392b; }
+
+  /* 下部: いまの段階の主ボタンを常に親指の届く位置に */
+  .dock { position:fixed; left:0; right:0; bottom:0; z-index:5; background:var(--bg);
+          border-top:1px solid var(--line);
+          padding:10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+  .dock button { width:100%; padding:15px; font-size:17px; font-weight:600; border:0; border-radius:12px;
+                 background:var(--accent); color:var(--accent-fg); }
+  .dock button:disabled { opacity:.5; }
+  .dock .alt { display:flex; gap:8px; margin-bottom:8px; }
+  .dock .alt button { padding:10px; font-size:14px; background:transparent; color:var(--accent);
+                      border:1px solid var(--accent); }
 </style>
 </head>
 <body>
 
-<h1>静止画 → 動画</h1>
-<div class="sub">
-  ① 0秒目の静止画を作る → ② 確認して必要なら直す → ③ その画像を動かす。
-  <a href="../reina">静止画だけの画面へ</a>
-</div>
+<header>
+  <nav class="steps">
+    <a href="#s1" data-step="1">① 静止画</a>
+    <a href="#s2" data-step="2">② 確認・修正</a>
+    <a href="#s3" data-step="3">③ 動画</a>
+  </nav>
+  <div class="status" id="status">場面を入れて静止画を作ります · <a href="../reina">静止画だけの画面</a></div>
+</header>
 
-<div class="card" id="c1">
-  <div class="step">① 0秒目の静止画</div>
-  <label for="scene">場面（英語。服装・場所・光を具体的に）</label>
-  <textarea id="scene" placeholder="sitting at a cafe terrace by the window, white blouse, soft afternoon light"></textarea>
-  <label>人物の参照画像（顔の写真だけ）</label>
-  <div class="imgs" id="refs"></div>
-  <div class="row">
-    <div><label for="seed">シード（空欄でランダム）</label><input id="seed" type="number" inputmode="numeric"></div>
+<section id="s1">
+  <div class="card">
+    <h2>① 0秒目の静止画</h2>
+    <label for="scene">場面（英語。服装・場所・光を具体的に）</label>
+    <textarea id="scene" enterkeyhint="done"
+      placeholder="sitting at a cafe terrace by the window, white blouse, soft afternoon light"></textarea>
+    <div class="chips" data-for="scene">
+      <button>cafe terrace, white blouse, soft afternoon light</button>
+      <button>beach at sunset, white sundress, golden light</button>
+      <button>quiet street in autumn, beige trench coat, overcast</button>
+      <button>cozy living room, oversized knit sweater, warm lamp light</button>
+      <button>park in spring, light cardigan and jeans, cherry blossoms</button>
+    </div>
+    <label>人物の参照画像（顔の写真だけ）</label>
+    <div class="refs" id="refs"></div>
+    <details>
+      <summary>シード</summary>
+      <label for="seed">シード（空欄でランダム。同じ値なら同じ構図）</label>
+      <input id="seed" type="number" inputmode="numeric">
+    </details>
+    <div class="bar" id="bar1"><div></div></div>
+    <div class="log" id="log1"></div>
   </div>
-  <button id="go1">静止画を作る</button>
-  <div class="bar"><div id="bar1"></div></div>
-  <div class="log" id="log1"></div>
-</div>
+</section>
 
-<div class="card off" id="cs">
-  <div class="step">いまの 0秒目</div>
-  <div class="sub" style="margin:0">下の候補をタップすると、その画像に切り替わります（編集前に戻すときも）。</div>
-  <div class="still"><img id="still" alt=""></div>
-  <div class="acts"><a id="stillDl" download>この画像を保存</a></div>
-  <div class="hist" id="hist"></div>
-</div>
-
-<div class="card off" id="c2">
-  <div class="step">② 直す（必要なときだけ）</div>
-  <label for="instr">修正の指示（具体的な英語が通りやすい）</label>
-  <textarea id="instr" placeholder="Change the white blouse to a light blue linen shirt."></textarea>
-  <button id="go2">この画像を直す</button>
-  <div class="bar"><div id="bar2"></div></div>
-  <div class="log" id="log2"></div>
-</div>
-
-<div class="card off" id="c3">
-  <div class="step">③ 動画にする</div>
-  <label for="action">動き・カメラ（英語）</label>
-  <textarea id="action" placeholder="she sips her coffee, looks at the camera and smiles"></textarea>
-  <label for="say">セリフ（空欄なら話さない）</label>
-  <input id="say" placeholder="ここ、すごく落ち着くね。">
-  <label for="voice">声の特徴（英語）</label>
-  <input id="voice" value="a calm, relaxed, slightly low adult female voice">
-  <label for="sound">環境音（英語。空欄なら場面に合わせる）</label>
-  <input id="sound" placeholder="quiet cafe ambience, cups clinking">
-  <label for="music">BGM（英語。空欄なら無し）</label>
-  <input id="music">
-  <div class="row">
-    <div><label for="seconds">長さ（秒）</label><input id="seconds" type="number" value="3" min="1" max="15" inputmode="decimal"></div>
-    <div><label for="lang">セリフの言語</label>
-      <select id="lang"><option>Japanese</option><option>English</option><option>Korean</option><option>Chinese</option></select></div>
-    <div><label for="vseed">シード</label><input id="vseed" type="number" inputmode="numeric"></div>
+<section id="s2">
+  <div class="card off" id="c2">
+    <h2>② 確認・修正</h2>
+    <div class="sub">候補をタップすると切り替わります（直す前に戻すときも）。</div>
+    <div class="still" style="margin-top:8px"><img id="still" alt=""></div>
+    <div class="hist" id="hist"></div>
+    <div class="acts"><a id="stillDl" download>この画像を保存</a></div>
+    <label for="instr">直す指示（必要なときだけ。具体的な英語が通りやすい）</label>
+    <textarea id="instr" enterkeyhint="done" placeholder="Change the white blouse to a light blue linen shirt."></textarea>
+    <div class="chips" data-for="instr">
+      <button>Make her smile naturally.</button>
+      <button>Change the background to a bright cafe interior.</button>
+      <button>Make the lighting warmer, like late afternoon sun.</button>
+      <button>Change the top to a navy blue knit sweater.</button>
+    </div>
+    <div class="bar" id="bar2"><div></div></div>
+    <div class="log" id="log2"></div>
   </div>
-  <button id="go3">動画を作る</button>
-  <div class="bar"><div id="bar3"></div></div>
-  <div class="log" id="log3"></div>
-  <div id="vout"></div>
+</section>
+
+<section id="s3">
+  <div class="card off" id="c3">
+    <h2>③ 動画にする</h2>
+    <label for="action">動き・カメラ（英語）</label>
+    <textarea id="action" enterkeyhint="done" placeholder="she sips her coffee, looks at the camera and smiles"></textarea>
+    <div class="chips" data-for="action">
+      <button>she looks at the camera and smiles</button>
+      <button>she waves at the camera</button>
+      <button>she brushes her hair back and laughs</button>
+      <button>she turns toward the camera, slow push-in</button>
+      <button>she walks toward the camera</button>
+    </div>
+    <label for="say">セリフ（空欄なら話さない）</label>
+    <input id="say" enterkeyhint="done" placeholder="ここ、すごく落ち着くね。">
+    <div class="row">
+      <div><label for="seconds">長さ</label>
+        <select id="seconds"><option value="3">3秒</option><option value="5">5秒</option>
+          <option value="8">8秒</option><option value="10">10秒</option><option value="15">15秒</option></select></div>
+      <div><label for="lang">セリフの言語</label>
+        <select id="lang"><option>Japanese</option><option>English</option><option>Korean</option><option>Chinese</option></select></div>
+    </div>
+    <details>
+      <summary>声・音・シード</summary>
+      <label for="voice">声の特徴（英語）</label>
+      <input id="voice" value="a calm, relaxed, slightly low adult female voice">
+      <label for="sound">環境音（英語。空欄なら場面に合わせる）</label>
+      <input id="sound" placeholder="quiet cafe ambience, cups clinking">
+      <label for="music">BGM（英語。空欄なら無し）</label>
+      <input id="music">
+      <label for="vseed">シード（空欄でランダム）</label>
+      <input id="vseed" type="number" inputmode="numeric">
+    </details>
+    <div class="bar" id="bar3"><div></div></div>
+    <div class="log" id="log3"></div>
+    <div id="vout"></div>
+  </div>
+</section>
+
+<div class="dock">
+  <div class="alt" id="alt" style="display:none">
+    <button id="again">別の構図で作り直す</button>
+    <button id="toVideo">直さずに動画へ</button>
+  </div>
+  <button id="main">静止画を作る</button>
 </div>
 
 <script>
@@ -119,6 +199,7 @@ const API = location.pathname.replace(/\/clip\/?$/, '');
 const fileUrl = (p, dl) => `${API}/file?${dl ? 'download=1&' : ''}path=${encodeURIComponent(p)}`;
 const DEFAULT_REFS = ['input/face.png', 'input/rightside.png', 'input/leftside.png'];
 const KEEP = ['scene', 'seed', 'instr', 'action', 'say', 'voice', 'sound', 'music', 'seconds', 'lang', 'vseed'];
+const LABEL = {1: '静止画を作る', 2: 'この画像を直す', 3: '動画を作る'};
 
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem('clip.' + k)); } catch { return null; } },
@@ -126,17 +207,54 @@ const store = {
 };
 
 let still = null;
+let step = 1;
+let busy = false;
 const history = [];
+
+// -- 段階の切り替え --------------------------------------------------------
+function setStep(n, scroll = true) {
+  step = n;
+  document.querySelectorAll('.steps a').forEach((a) => {
+    const s = +a.dataset.step;
+    a.classList.toggle('on', s === n);
+    a.classList.toggle('done', s < n || (s === 1 && still));
+  });
+  $('alt').style.display = n === 2 ? 'flex' : 'none';
+  if (!busy) $('main').textContent = LABEL[n];
+  if (scroll) $('s' + n).scrollIntoView({behavior: 'smooth'});
+}
+document.querySelectorAll('.steps a').forEach((a) => {
+  a.onclick = (e) => {
+    e.preventDefault();
+    const n = +a.dataset.step;
+    if (n > 1 && !still) return;
+    setStep(n);
+  };
+});
+
+// 例をタップすると入力欄に入る
+document.querySelectorAll('.chips').forEach((box) => {
+  box.querySelectorAll('button').forEach((b) => {
+    b.onclick = () => {
+      const target = $(box.dataset.for);
+      target.value = b.textContent;
+      target.dispatchEvent(new Event('input'));
+    };
+  });
+});
 
 function restore() {
   KEEP.forEach((id) => { const v = store.get(id); if (v !== null && v !== undefined) $(id).value = v; });
-  KEEP.forEach((id) => $(id).addEventListener('input', () => store.set(id, $(id).value)));
+  KEEP.forEach((id) => {
+    $(id).addEventListener('input', () => store.set(id, $(id).value));
+    $(id).addEventListener('change', () => store.set(id, $(id).value));
+  });
   (store.get('history') || []).forEach((p) => history.push(p));
-  if (history.length) setStill(store.get('still') || history[history.length - 1]);
+  if (history.length) setStill(store.get('still') || history[history.length - 1], false);
 }
 
 async function loadRefs() {
-  const r = await fetch(`${API}/options`).then((r) => r.json());
+  const r = await fetch(`${API}/options`).then((r) => r.json()).catch(() => ({images: []}));
   const chosen = store.get('refs') || DEFAULT_REFS;
   $('refs').innerHTML = r.images.length
     ? r.images.map((p) =>
@@ -147,98 +265,162 @@ async function loadRefs() {
 }
 const refs = () => [...$('refs').querySelectorAll('input:checked')].map((el) => el.value);
 
-function setStill(p) {
+function setStill(p, advance = true) {
   still = p;
   if (!history.includes(p)) history.push(p);
   store.set('still', p);
-  store.set('history', history.slice(-15));
+  store.set('history', history.slice(-20));
   $('still').src = fileUrl(p);
   $('stillDl').href = fileUrl(p, true);
   $('hist').innerHTML = '';
-  history.slice(-15).forEach((h) => {
+  history.slice(-20).reverse().forEach((h) => {
     const img = document.createElement('img');
     img.src = fileUrl(h);
+    img.loading = 'lazy';
     img.className = h === p ? 'sel' : '';
-    img.onclick = () => setStill(h);
+    img.onclick = () => setStill(h, false);
     $('hist').appendChild(img);
   });
-  ['cs', 'c2', 'c3'].forEach((id) => $(id).classList.remove('off'));
+  ['c2', 'c3'].forEach((id) => $(id).classList.remove('off'));
+  if (advance) setStep(2);
 }
 
-// 1回の実行を流し、終わったら最後に保存されたファイルを返す
-async function run(body, ui) {
-  ui.btn.disabled = true;
-  const idle = ui.btn.textContent;
-  ui.btn.textContent = '実行中…';
-  ui.bar.style.width = '0';
-  ui.log.textContent = '';
+// -- 実行 ------------------------------------------------------------------
+let wakeLock = null;
+async function keepAwake(on) {
+  // 生成中に画面が消えると iOS はページを止めるので、できるだけ点けておく
+  try {
+    if (on && 'wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch {}
+}
+
+function setBusy(on, text) {
+  busy = on;
+  $('main').disabled = on;
+  $('again').disabled = on;
+  $('toVideo').disabled = on;
+  $('main').textContent = on ? text : LABEL[step];
+  keepAwake(on);
+}
+
+// 1回の実行を見届けて、最後に保存されたファイルを返す。
+// ページを閉じても戻ってきたら続きを追えるよう、実行 ID を保存しておく
+function watch(id, kind) {
+  const n = {still: 1, edit: 2, video: 3}[kind];
+  const bar = $('bar' + n), log = $('log' + n);
+  bar.classList.add('show');
+  return new Promise((resolve) => {
+    const tick = async () => {
+      const s = await fetch(`${API}/status?id=${id}`).then((r) => r.json()).catch(() => null);
+      if (!s) return setTimeout(tick, 2000);
+      if (s.error) { store.set('running', null); setBusy(false); resolve(null); return; }
+      const pct = s.steps ? (s.step / s.steps) * 100 : 4;
+      bar.firstElementChild.style.width = pct + '%';
+      const head = (s.steps ? `${s.step}/${s.steps} ステップ · ` : '準備中 · ') + `${Math.round(s.elapsed)}秒`;
+      $('status').textContent = `${{still: '静止画', edit: '修正', video: '動画'}[kind]}を作成中 · ${head}`;
+      log.textContent = s.log.split('\n').filter(Boolean).slice(-3).join('\n');
+      if (!s.finished) return setTimeout(tick, 1000);
+
+      store.set('running', null);
+      setBusy(false);
+      bar.firstElementChild.style.width = '100%';
+      if (s.returncode !== 0 || !s.images.length) {
+        log.innerHTML = `<span class="err">失敗しました（終了コード ${s.returncode}）</span>\n` +
+          s.log.split('\n').filter(Boolean).slice(-4).join('\n');
+        $('status').textContent = '失敗しました。ログを確認してください';
+        resolve(null);
+        return;
+      }
+      log.textContent = '';
+      bar.classList.remove('show');
+      $('status').textContent = `完了（${Math.round(s.elapsed)}秒）`;
+      try { navigator.vibrate && navigator.vibrate(200); } catch {}
+      document.title = '✓ reina clip';
+      setTimeout(() => { document.title = 'reina clip'; }, 8000);
+      resolve(s.images[s.images.length - 1]);
+    };
+    tick();
+  });
+}
+
+async function start(kind, body) {
+  setBusy(true, '実行中…');
   const r = await fetch(`${API}/run`, {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
   }).then((r) => r.json()).catch((e) => ({error: String(e)}));
   if (r.error) {
-    ui.btn.disabled = false; ui.btn.textContent = idle;
-    ui.log.innerHTML = `<div class="err">${r.error}</div>`;
+    setBusy(false);
+    $('status').innerHTML = `<span class="err">${r.error}</span>`;
     return null;
   }
-  return new Promise((resolve) => {
-    const timer = setInterval(async () => {
-      const s = await fetch(`${API}/status?id=${r.id}`).then((r) => r.json()).catch(() => null);
-      if (!s || s.error) return;
-      ui.bar.style.width = (s.steps ? (s.step / s.steps) * 100 : 3) + '%';
-      ui.log.textContent = (s.steps ? `${s.step}/${s.steps} ステップ  ` : '') + `${s.elapsed}s\n` +
-        s.log.split('\n').slice(-4).join('\n');
-      if (!s.finished) return;
-      clearInterval(timer);
-      ui.btn.disabled = false; ui.btn.textContent = idle;
-      ui.bar.style.width = '100%';
-      if (s.returncode !== 0 || !s.images.length) {
-        ui.log.innerHTML += `<div class="err">失敗しました（終了コード ${s.returncode}）</div>`;
-        resolve(null);
-      } else {
-        ui.log.textContent = `完了（${s.elapsed}s）`;
-        resolve(s.images[s.images.length - 1]);
-      }
-    }, 1000);
-  });
+  store.set('running', {id: r.id, kind});
+  return finish(kind, await watch(r.id, kind));
 }
 
-$('go1').onclick = async () => {
+function finish(kind, path) {
+  if (!path) return null;
+  if (kind === 'video') showVideo(path);
+  else setStill(path);
+  return path;
+}
+
+function showVideo(p, scroll = true) {
+  store.set('video', p);
+  $('vout').innerHTML =
+    `<video src="${fileUrl(p)}" controls playsinline preload="metadata"></video>` +
+    `<div class="acts"><a href="${fileUrl(p, true)}" download>動画を保存</a></div>`;
+  if (scroll) $('vout').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+function makeStill() {
   const prompt = $('scene').value.trim();
-  if (!prompt) { alert('場面を入力してください'); return; }
+  if (!prompt) { setStep(1); $('scene').focus(); return; }
   if (!refs().length && !confirm('参照画像なしで作りますか？（別人になります）')) return;
-  const p = await run({prompt, ref: refs(), seed: $('seed').value, repeat: 1},
-                      {btn: $('go1'), bar: $('bar1'), log: $('log1')});
-  if (p) { setStill(p); $('cs').scrollIntoView({behavior: 'smooth'}); }
-};
+  document.activeElement.blur();
+  start('still', {prompt, ref: refs(), seed: $('seed').value, repeat: 1});
+}
 
-$('go2').onclick = async () => {
-  const instruction = $('instr').value.trim();
-  if (!still) return;
-  if (!instruction) { alert('修正の指示を入力してください'); return; }
-  const p = await run({mode: 'edit', image: still, instruction, repeat: 1},
-                      {btn: $('go2'), bar: $('bar2'), log: $('log2')});
-  if (p) { setStill(p); $('cs').scrollIntoView({behavior: 'smooth'}); }
-};
-
-$('go3').onclick = async () => {
+$('main').onclick = () => {
+  if (busy) return;
+  document.activeElement.blur();
+  if (step === 1) return makeStill();
+  if (step === 2) {
+    const instruction = $('instr').value.trim();
+    if (!instruction) { $('instr').focus(); return; }
+    return start('edit', {mode: 'edit', image: still, instruction, repeat: 1});
+  }
   const action = $('action').value.trim();
-  if (!still) return;
-  if (!action) { alert('動きを入力してください'); return; }
+  if (!action) { $('action').focus(); return; }
   $('vout').innerHTML = '';
-  const p = await run({
+  start('video', {
     mode: 'video', image: still, action,
     say: $('say').value, voice: $('voice').value, sound: $('sound').value, music: $('music').value,
     seconds: $('seconds').value, lang: $('lang').value, seed: $('vseed').value,
-  }, {btn: $('go3'), bar: $('bar3'), log: $('log3')});
-  if (p) {
-    $('vout').innerHTML =
-      `<video src="${fileUrl(p)}" controls playsinline></video>` +
-      `<div class="acts"><a href="${fileUrl(p, true)}" download>動画を保存</a></div>`;
-  }
+  });
 };
+$('again').onclick = () => { $('seed').value = ''; store.set('seed', ''); makeStill(); };
+$('toVideo').onclick = () => setStep(3);
+
+// 入力欄にフォーカスしたら、その段階のボタンにする
+['scene', 'seed'].forEach((id) => $(id).addEventListener('focus', () => setStep(1, false)));
+['instr'].forEach((id) => $(id).addEventListener('focus', () => setStep(2, false)));
+['action', 'say', 'voice', 'sound', 'music', 'vseed'].forEach((id) =>
+  $(id).addEventListener('focus', () => setStep(3, false)));
 
 restore();
 loadRefs();
+setStep(still ? 2 : 1, false);
+const last = store.get('video');
+if (last) showVideo(last, false);
+// 生成中にページが閉じられていたら、続きを追う
+const running = store.get('running');
+if (running) {
+  setBusy(true, '実行中…');
+  setStep({still: 1, edit: 2, video: 3}[running.kind], false);
+  watch(running.id, running.kind).then((p) => finish(running.kind, p));
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && busy) keepAwake(true); });
 </script>
 </body>
 </html>
