@@ -216,6 +216,17 @@ const DEFAULT_REFS = ['input/face.png', 'input/rightside.png', 'input/leftside.p
 const KEEP = ['scene', 'seed', 'instr', 'action', 'say', 'voice', 'sound', 'music', 'seconds', 'lang', 'vseed'];
 const LABEL = {1: '静止画を作る', 2: 'この画像を直す', 3: '動画を作る'};
 
+// CLI の進捗は \r で同じ行を書き換えるので、各行の最後の書き換えだけを残す
+const logLines = (text) =>
+  text.split('\n').map((l) => l.split('\r').filter((x) => x.trim()).pop() || '').filter((l) => l.trim());
+
+// 下の固定ボタン（キャンセルが出ると高くなる）にログが隠れないよう、余白を合わせる
+function fitDock() {
+  const h = document.querySelector('.dock').offsetHeight;
+  document.body.style.paddingBottom = `${h + 16}px`;
+}
+window.addEventListener('resize', fitDock);
+
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem('clip.' + k)); } catch { return null; } },
   set(k, v) { try { localStorage.setItem('clip.' + k, JSON.stringify(v)); } catch {} },
@@ -235,7 +246,8 @@ function setStep(n, scroll = true) {
     a.classList.toggle('on', s === n);
     a.classList.toggle('done', s < n || (s === 1 && still));
   });
-  $('alt').style.display = n === 2 ? 'flex' : 'none';
+  $('alt').style.display = n === 2 && !busy ? 'flex' : 'none';
+  fitDock();
   if (!busy) $('main').textContent = LABEL[n];
   if (scroll) $('s' + n).scrollIntoView({behavior: 'smooth'});
 }
@@ -378,6 +390,7 @@ function setBusy(on, text) {
   $('main').textContent = on ? text : LABEL[step];
   $('cancelRow').style.display = on ? 'flex' : 'none';
   $('alt').style.display = !on && step === 2 ? 'flex' : 'none';
+  fitDock();
   keepAwake(on);
 }
 
@@ -423,7 +436,7 @@ function watch(id, kind) {
       bar.firstElementChild.style.width = pct + '%';
       const head = (s.steps ? `${s.step}/${s.steps} ステップ · ` : '準備中 · ') + `${Math.round(s.elapsed)}秒`;
       $('status').textContent = `${{still: '静止画', edit: '修正', video: '動画'}[kind]}を作成中 · ${head}`;
-      log.textContent = s.log.split('\n').filter(Boolean).slice(-3).join('\n');
+      log.textContent = logLines(s.log).slice(-3).join('\n');
       if (!s.finished) return setTimeout(tick, 1000);
 
       store.set('running', null);
@@ -431,7 +444,7 @@ function watch(id, kind) {
       bar.firstElementChild.style.width = '100%';
       if (s.returncode !== 0 || !s.images.length) {
         log.innerHTML = `<span class="err">失敗しました（終了コード ${s.returncode}）</span>\n` +
-          s.log.split('\n').filter(Boolean).slice(-4).join('\n');
+          logLines(s.log).slice(-4).join('\n');
         $('status').textContent = '失敗しました。ログを確認してください';
         resolve(null);
         return;

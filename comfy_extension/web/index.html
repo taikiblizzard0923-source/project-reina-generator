@@ -217,7 +217,7 @@ function watch(id, ui) {
     ui.log.textContent =
       (s.total ? `${s.current}/${s.total} 枚目  ` : '') +
       (s.steps ? `${s.step}/${s.steps} ステップ  ` : '') +
-      `${s.elapsed}s\n` + s.log.split('\n').slice(-6).join('\n');
+      `${s.elapsed}s\n` + s.log.split('\n').map((l) => l.split('\r').filter((x) => x.trim()).pop() || '').filter((l) => l.trim()).slice(-6).join('\n');
 
     const shown = ui.out.childElementCount;
     s.images.slice(shown).forEach((p) => ui.out.appendChild(shot(p)));
