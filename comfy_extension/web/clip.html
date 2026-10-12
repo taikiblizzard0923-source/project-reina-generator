@@ -253,8 +253,25 @@ function restore() {
   if (history.length) setStill(store.get('still') || history[history.length - 1], false);
 }
 
+// 失敗の理由を隠さないための fetch（ステータスと本文の先頭を例外にする）
+async function api(path, init) {
+  const url = `${API}/${path}`;
+  let res;
+  try { res = await fetch(url, {cache: 'no-store', ...init}); }
+  catch (e) { throw new Error(`${url} に接続できません（${e.message}）`); }
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch { throw new Error(`${url} → ${res.status} ${text.replace(/<[^>]+>/g, ' ').trim().slice(0, 120)}`); }
+}
+
 async function loadRefs() {
-  const r = await fetch(`${API}/options`).then((r) => r.json()).catch(() => ({images: []}));
+  let r;
+  try { r = await api('options'); }
+  catch (e) {
+    $('refs').innerHTML = `<span class="err">画像の一覧を読み込めません: ${e.message}</span> <a href="#" id="retryRefs">再読み込み</a>`;
+    $('retryRefs').onclick = (ev) => { ev.preventDefault(); loadRefs(); };
+    return;
+  }
   const chosen = store.get('refs') || DEFAULT_REFS;
   $('refs').innerHTML = r.images.length
     ? r.images.map((p) =>
@@ -311,10 +328,21 @@ function watch(id, kind) {
   const bar = $('bar' + n), log = $('log' + n);
   bar.classList.add('show');
   return new Promise((resolve) => {
+    let failures = 0;
     const tick = async () => {
-      const s = await fetch(`${API}/status?id=${id}`).then((r) => r.json()).catch(() => null);
-      if (!s) return setTimeout(tick, 2000);
-      if (s.error) { store.set('running', null); setBusy(false); resolve(null); return; }
+      let s;
+      try { s = await api(`status?id=${id}`); failures = 0; }
+      catch (e) {
+        failures += 1;
+        $('status').innerHTML = `<span class="err">進み具合を取得できません（${failures}回目）: ${e.message}</span>`;
+        if (failures < 15) return setTimeout(tick, 2000);
+        store.set('running', null); setBusy(false); resolve(null); return;
+      }
+      if (s.error) {
+        // ComfyUI を再起動すると実行の記録は消える
+        $('status').textContent = '実行の記録が見つかりません（ComfyUI を再起動した場合など）';
+        store.set('running', null); setBusy(false); resolve(null); return;
+      }
       const pct = s.steps ? (s.step / s.steps) * 100 : 4;
       bar.firstElementChild.style.width = pct + '%';
       const head = (s.steps ? `${s.step}/${s.steps} ステップ · ` : '準備中 · ') + `${Math.round(s.elapsed)}秒`;
@@ -346,9 +374,9 @@ function watch(id, kind) {
 
 async function start(kind, body) {
   setBusy(true, '実行中…');
-  const r = await fetch(`${API}/run`, {
+  const r = await api('run', {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
-  }).then((r) => r.json()).catch((e) => ({error: String(e)}));
+  }).catch((e) => ({error: e.message}));
   if (r.error) {
     setBusy(false);
     $('status').innerHTML = `<span class="err">${r.error}</span>`;
