@@ -75,6 +75,38 @@ def _make_client(cfg, args: argparse.Namespace) -> ComfyClient:
     )
 
 
+FAMILY_MARK = ROOT / "output" / ".last_family"
+
+
+def _switch_family(client: ComfyClient, family: str, dry_run: bool = False) -> None:
+    """静止画（Qwen-Image）と動画（MiniMax H3）を切り替えるときに、前のモデルを VRAM から外す。
+
+    両方を合わせると VRAM 48GB に収まらない。ComfyUI は普段は必要な分を自動で外すが、
+    dynamic VRAM を切っている（ネットワーク上のストレージ向け）と外し切れずに
+    H3 の読み込みで OOM になる（実機で確認）。同じ種類が続くときは外さない。
+    Web UI も CLI 経由なので、印は output/ に置いて共有する。
+    """
+    if dry_run:
+        return
+    try:
+        previous = FAMILY_MARK.read_text(encoding="utf-8").strip()
+    except OSError:
+        previous = ""
+    if previous and previous != family:
+        _log("前のモデルを VRAM から外します（静止画と動画の切り替え）")
+        try:
+            client.free()
+            # /free は ComfyUI の実行ループが拾ってから効くので、次の投入より先に処理させる
+            time.sleep(2)
+        except Exception as exc:  # noqa: BLE001 - 外せなくても生成は試す
+            _log(f"  外せませんでした: {exc}")
+    try:
+        FAMILY_MARK.parent.mkdir(parents=True, exist_ok=True)
+        FAMILY_MARK.write_text(family, encoding="utf-8")
+    except OSError:
+        pass
+
+
 def _load_with_model(args: argparse.Namespace):
     """config を読み、--model があれば今回だけ本体モデルを差し替える。"""
     cfg = load_config(args.config)
@@ -349,6 +381,7 @@ def _run_jobs(
     all_paths = list(reference_paths) + [p for p, _ in scene_refs]
     reference_mode = bool(all_paths)
 
+    _switch_family(client, "image", args.dry_run)
     uploaded: list[str] = []
     if reference_mode and not args.dry_run:
         for path in all_paths:
@@ -558,6 +591,7 @@ def cmd_edit(args: argparse.Namespace) -> int:
     builder = WorkflowBuilder(cfg.models, cfg.defaults, loras)
 
     encoder = args.encoder or IMAGE_EDIT_ENCODER
+    _switch_family(client, "image", args.dry_run)
     if args.dry_run:
         uploaded = [Path(p).name for p in paths]
     else:
@@ -671,6 +705,7 @@ def cmd_video(args: argparse.Namespace) -> int:
     width, height = (args.width, args.height) if args.width and args.height else video_size(*aspect, megapixels)
     _log(f"{mode}  {width}x{height}  {seconds}s ({frame_count(seconds)} フレーム)")
 
+    _switch_family(client, "video", args.dry_run)
     uploaded = [Path(p).name for p in paths] if args.dry_run else [client.upload_image(p) for p in paths]
     out_dir = _out_dir(args)
     failures = 0
