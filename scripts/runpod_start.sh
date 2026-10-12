@@ -20,6 +20,13 @@ fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 
+# /workspace がネットワーク上のストレージ（venv を内蔵ディスクに置いている）なら、
+# 使うモデルも内蔵ディスクに写して、そちらから読ませる（local_models.py の説明を参照）
+if [ -L venv ] && [ "${SKIP_LOCAL_MODELS:-0}" != "1" ]; then
+  echo "==> モデルを内蔵ディスクに写します（写し済みは飛ばす。初回は数分）"
+  python "$(dirname "$(readlink -f "$0")")/local_models.py" --comfy "$COMFY" || true
+fi
+
 # RunPod のプロキシから届かせるため 0.0.0.0 で待ち受ける（127.0.0.1 では外から見えない）
 CMD=(python main.py --listen 0.0.0.0 --port "$PORT")
 # venv を内蔵ディスクに置いている＝/workspace がネットワーク上のストレージ（make_venv.sh）。
