@@ -304,7 +304,8 @@ async function loadPreset(name) {
   r.scenes.forEach((s) => {
     const b = document.createElement('button');
     b.innerHTML = '<b></b><span></span>';
-    b.querySelector('b').textContent = s.id + (s.width && s.height ? `  ${s.width}×${s.height}` : '');
+    b.querySelector('b').textContent = [s.id, s.title, s.width && s.height ? `${s.width}×${s.height}` : '',
+      s.video ? '動画の指示あり' : ''].filter(Boolean).join('  ');
     b.querySelector('span').textContent = s.prompt;
     b.className = $('scene').value.trim() === s.prompt ? 'sel' : '';
     b.onclick = () => {
@@ -312,6 +313,13 @@ async function loadPreset(name) {
       store.set('scene', s.prompt);
       presetSize = s.width && s.height ? {width: s.width, height: s.height, prompt: s.prompt} : null;
       store.set('presetSize', presetSize);
+      // 動画の指示も持っているプリセットなら、③の欄と長さも埋める
+      if (s.video) { $('action').value = s.video; store.set('action', s.video); }
+      if (s.seconds) {
+        const options = [...$('seconds').options].map((o) => +o.value);
+        const near = options.reduce((a, b) => (Math.abs(b - s.seconds) < Math.abs(a - s.seconds) ? b : a));
+        $('seconds').value = String(near); store.set('seconds', String(near));
+      }
       $('plist').querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
     };
     $('plist').appendChild(b);

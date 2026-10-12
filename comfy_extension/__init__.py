@@ -118,9 +118,13 @@ async def scenes(request: web.Request) -> web.Response:
             continue
         items.append({
             "id": str(item.get("id") or f"scene{index:02d}"),
+            "title": item.get("title"),
             "prompt": " ".join(str(item["prompt"]).split()),
             "width": item.get("width"),
             "height": item.get("height"),
+            # md_to_preset.py で変換したプリセットは動画の指示と長さも持つ
+            "video": " ".join(str(item["video"]).split()) if item.get("video") else None,
+            "seconds": item.get("seconds"),
         })
     return web.json_response({"name": name, "scenes": items})
 
