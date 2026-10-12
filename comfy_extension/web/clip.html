@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>reina clip</title>
+<style>
+  :root {
+    --bg: #faf9f7; --card: #fff; --fg: #1c1b19; --muted: #6b6862;
+    --line: #e3e0da; --accent: #b4541f; --accent-fg: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#171614; --card:#201e1b; --fg:#ece9e3; --muted:#9a958c;
+            --line:#332f2a; --accent:#d9743f; --accent-fg:#171614; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg);
+         font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  a { color:var(--accent); }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:14px; margin-bottom:14px; }
+  .card.off { opacity:.45; pointer-events:none; }
+  .step { font-size:14px; font-weight:600; margin-bottom:2px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input, select, textarea { width:100%; padding:10px; font-size:16px; color:var(--fg);
+          background:var(--bg); border:1px solid var(--line); border-radius:8px; font-family:inherit; }
+  textarea { min-height:72px; resize:vertical; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; min-width:0; }
+  button { width:100%; padding:14px; font-size:16px; font-weight:600; border:0; margin-top:12px;
+           border-radius:10px; background:var(--accent); color:var(--accent-fg); }
+  button:disabled { opacity:.45; }
+  .imgs { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .imgs label { display:flex; align-items:center; gap:6px; margin:0; padding:7px 10px;
+          border:1px solid var(--line); border-radius:8px; font-size:13px; color:var(--fg); }
+  .imgs input { width:auto; }
+  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:12px; }
+  .bar div { height:100%; width:0; background:var(--accent); transition:width .25s; }
+  .log { white-space:pre-wrap; font:12px/1.5 ui-monospace,monospace; color:var(--muted);
+         max-height:120px; overflow:auto; margin-top:8px; }
+  .err { color:#c0392b; font-size:13px; }
+  .still img, video { width:100%; border-radius:10px; display:block; margin-top:12px; background:#000; }
+  .hist { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:8px; }
+  .hist img { width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:6px;
+              border:3px solid transparent; display:block; cursor:pointer; }
+  .hist img.sel { border-color:var(--accent); }
+  .acts { display:flex; gap:16px; font-size:13px; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<h1>静止画 → 動画</h1>
+<div class="sub">
+  ① 0秒目の静止画を作る → ② 確認して必要なら直す → ③ その画像を動かす。
+  <a href="../reina">静止画だけの画面へ</a>
+</div>
+
+<div class="card" id="c1">
+  <div class="step">① 0秒目の静止画</div>
+  <label for="scene">場面（英語。服装・場所・光を具体的に）</label>
+  <textarea id="scene" placeholder="sitting at a cafe terrace by the window, white blouse, soft afternoon light"></textarea>
+  <label>人物の参照画像（顔の写真だけ）</label>
+  <div class="imgs" id="refs"></div>
+  <div class="row">
+    <div><label for="seed">シード（空欄でランダム）</label><input id="seed" type="number" inputmode="numeric"></div>
+  </div>
+  <button id="go1">静止画を作る</button>
+  <div class="bar"><div id="bar1"></div></div>
+  <div class="log" id="log1"></div>
+</div>
+
+<div class="card off" id="cs">
+  <div class="step">いまの 0秒目</div>
+  <div class="sub" style="margin:0">下の候補をタップすると、その画像に切り替わります（編集前に戻すときも）。</div>
+  <div class="still"><img id="still" alt=""></div>
+  <div class="acts"><a id="stillDl" download>この画像を保存</a></div>
+  <div class="hist" id="hist"></div>
+</div>
+
+<div class="card off" id="c2">
+  <div class="step">② 直す（必要なときだけ）</div>
+  <label for="instr">修正の指示（具体的な英語が通りやすい）</label>
+  <textarea id="instr" placeholder="Change the white blouse to a light blue linen shirt."></textarea>
+  <button id="go2">この画像を直す</button>
+  <div class="bar"><div id="bar2"></div></div>
+  <div class="log" id="log2"></div>
+</div>
+
+<div class="card off" id="c3">
+  <div class="step">③ 動画にする</div>
+  <label for="action">動き・カメラ（英語）</label>
+  <textarea id="action" placeholder="she sips her coffee, looks at the camera and smiles"></textarea>
+  <label for="say">セリフ（空欄なら話さない）</label>
+  <input id="say" placeholder="ここ、すごく落ち着くね。">
+  <label for="voice">声の特徴（英語）</label>
+  <input id="voice" value="a calm, relaxed, slightly low adult female voice">
+  <label for="sound">環境音（英語。空欄なら場面に合わせる）</label>
+  <input id="sound" placeholder="quiet cafe ambience, cups clinking">
+  <label for="music">BGM（英語。空欄なら無し）</label>
+  <input id="music">
+  <div class="row">
+    <div><label for="seconds">長さ（秒）</label><input id="seconds" type="number" value="3" min="1" max="15" inputmode="decimal"></div>
+    <div><label for="lang">セリフの言語</label>
+      <select id="lang"><option>Japanese</option><option>English</option><option>Korean</option><option>Chinese</option></select></div>
+    <div><label for="vseed">シード</label><input id="vseed" type="number" inputmode="numeric"></div>
+  </div>
+  <button id="go3">動画を作る</button>
+  <div class="bar"><div id="bar3"></div></div>
+  <div class="log" id="log3"></div>
+  <div id="vout"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+// /reina/clip → /reina（ComfyUI がサブパスで配信されていても動くように）
+const API = location.pathname.replace(/\/clip\/?$/, '');
+const fileUrl = (p, dl) => `${API}/file?${dl ? 'download=1&' : ''}path=${encodeURIComponent(p)}`;
+const DEFAULT_REFS = ['input/face.png', 'input/rightside.png', 'input/leftside.png'];
+const KEEP = ['scene', 'seed', 'instr', 'action', 'say', 'voice', 'sound', 'music', 'seconds', 'lang', 'vseed'];
+
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem('clip.' + k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem('clip.' + k, JSON.stringify(v)); } catch {} },
+};
+
+let still = null;
+const history = [];
+
+function restore() {
+  KEEP.forEach((id) => { const v = store.get(id); if (v !== null && v !== undefined) $(id).value = v; });
+  KEEP.forEach((id) => $(id).addEventListener('input', () => store.set(id, $(id).value)));
+  (store.get('history') || []).forEach((p) => history.push(p));
+  if (history.length) setStill(store.get('still') || history[history.length - 1]);
+}
+
+async function loadRefs() {
+  const r = await fetch(`${API}/options`).then((r) => r.json());
+  const chosen = store.get('refs') || DEFAULT_REFS;
+  $('refs').innerHTML = r.images.length
+    ? r.images.map((p) =>
+        `<label><input type="checkbox" value="${p}" ${chosen.includes(p) ? 'checked' : ''}>${p.replace('input/', '')}</label>`
+      ).join('')
+    : '<span class="sub">input/ に画像がありません</span>';
+  $('refs').onchange = () => store.set('refs', refs());
+}
+const refs = () => [...$('refs').querySelectorAll('input:checked')].map((el) => el.value);
+
+function setStill(p) {
+  still = p;
+  if (!history.includes(p)) history.push(p);
+  store.set('still', p);
+  store.set('history', history.slice(-15));
+  $('still').src = fileUrl(p);
+  $('stillDl').href = fileUrl(p, true);
+  $('hist').innerHTML = '';
+  history.slice(-15).forEach((h) => {
+    const img = document.createElement('img');
+    img.src = fileUrl(h);
+    img.className = h === p ? 'sel' : '';
+    img.onclick = () => setStill(h);
+    $('hist').appendChild(img);
+  });
+  ['cs', 'c2', 'c3'].forEach((id) => $(id).classList.remove('off'));
+}
+
+// 1回の実行を流し、終わったら最後に保存されたファイルを返す
+async function run(body, ui) {
+  ui.btn.disabled = true;
+  const idle = ui.btn.textContent;
+  ui.btn.textContent = '実行中…';
+  ui.bar.style.width = '0';
+  ui.log.textContent = '';
+  const r = await fetch(`${API}/run`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+  }).then((r) => r.json()).catch((e) => ({error: String(e)}));
+  if (r.error) {
+    ui.btn.disabled = false; ui.btn.textContent = idle;
+    ui.log.innerHTML = `<div class="err">${r.error}</div>`;
+    return null;
+  }
+  return new Promise((resolve) => {
+    const timer = setInterval(async () => {
+      const s = await fetch(`${API}/status?id=${r.id}`).then((r) => r.json()).catch(() => null);
+      if (!s || s.error) return;
+      ui.bar.style.width = (s.steps ? (s.step / s.steps) * 100 : 3) + '%';
+      ui.log.textContent = (s.steps ? `${s.step}/${s.steps} ステップ  ` : '') + `${s.elapsed}s\n` +
+        s.log.split('\n').slice(-4).join('\n');
+      if (!s.finished) return;
+      clearInterval(timer);
+      ui.btn.disabled = false; ui.btn.textContent = idle;
+      ui.bar.style.width = '100%';
+      if (s.returncode !== 0 || !s.images.length) {
+        ui.log.innerHTML += `<div class="err">失敗しました（終了コード ${s.returncode}）</div>`;
+        resolve(null);
+      } else {
+        ui.log.textContent = `完了（${s.elapsed}s）`;
+        resolve(s.images[s.images.length - 1]);
+      }
+    }, 1000);
+  });
+}
+
+$('go1').onclick = async () => {
+  const prompt = $('scene').value.trim();
+  if (!prompt) { alert('場面を入力してください'); return; }
+  if (!refs().length && !confirm('参照画像なしで作りますか？（別人になります）')) return;
+  const p = await run({prompt, ref: refs(), seed: $('seed').value, repeat: 1},
+                      {btn: $('go1'), bar: $('bar1'), log: $('log1')});
+  if (p) { setStill(p); $('cs').scrollIntoView({behavior: 'smooth'}); }
+};
+
+$('go2').onclick = async () => {
+  const instruction = $('instr').value.trim();
+  if (!still) return;
+  if (!instruction) { alert('修正の指示を入力してください'); return; }
+  const p = await run({mode: 'edit', image: still, instruction, repeat: 1},
+                      {btn: $('go2'), bar: $('bar2'), log: $('log2')});
+  if (p) { setStill(p); $('cs').scrollIntoView({behavior: 'smooth'}); }
+};
+
+$('go3').onclick = async () => {
+  const action = $('action').value.trim();
+  if (!still) return;
+  if (!action) { alert('動きを入力してください'); return; }
+  $('vout').innerHTML = '';
+  const p = await run({
+    mode: 'video', image: still, action,
+    say: $('say').value, voice: $('voice').value, sound: $('sound').value, music: $('music').value,
+    seconds: $('seconds').value, lang: $('lang').value, seed: $('vseed').value,
+  }, {btn: $('go3'), bar: $('bar3'), log: $('log3')});
+  if (p) {
+    $('vout').innerHTML =
+      `<video src="${fileUrl(p)}" controls playsinline></video>` +
+      `<div class="acts"><a href="${fileUrl(p, true)}" download>動画を保存</a></div>`;
+  }
+};
+
+restore();
+loadRefs();
+</script>
+</body>
+</html>

@@ -4,7 +4,8 @@ ComfyUI 本体と同じポート（既定 8188）で配信するので、
 RunPod で新しくポートを開ける必要がない。
 スマホのブラウザだけで、生成 → 閲覧 → ZIP ダウンロードまで完結する。
 
-    <ComfyUI の URL>/reina
+    <ComfyUI の URL>/reina        静止画の生成・編集
+    <ComfyUI の URL>/reina/clip   静止画 → 確認・編集 → 動画
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ REPO = Path(os.environ.get("REINA_REPO", "/workspace/project-reina-generator"))
 WEB = Path(__file__).resolve().parent / "web"
 
 # CLI の出力から進捗を読み取る
-SAVED = re.compile(r"->\s*(\S+\.png)\s*$")
+SAVED = re.compile(r"->\s*(\S+\.(?:png|mp4|webm))\s*$")
 DONE = re.compile(r"完了:\s*(\S+)")
 JOB = re.compile(r"\[(\d+)/(\d+)\]")
 STEP = re.compile(r"\[[#.]+\]\s*(\d+)/(\d+)")
@@ -152,12 +153,31 @@ def _edit_args(body: dict) -> list[str] | None:
     return args
 
 
+def _video_args(body: dict) -> list[str] | None:
+    """静止画（0秒目）を動かす。画像は REPO 配下のものだけ。"""
+    image = _safe(str(body.get("image") or ""))
+    action = str(body.get("action") or "").strip()
+    if not image or not image.is_file() or not action:
+        return None
+    args = ["video", action, "--image", str(image)]
+    for key in ("seconds", "say", "voice", "sound", "music", "lang", "seed"):
+        value = body.get(key)
+        if value not in (None, ""):
+            args += [f"--{key}", str(value).strip()]
+    return args
+
+
 @routes.post("/reina/run")
 async def run(request: web.Request) -> web.Response:
     body = await request.json()
 
     args = [_python(), "-m", "reina"]
-    if body.get("mode") == "edit":
+    if body.get("mode") == "video":
+        video_args = _video_args(body)
+        if video_args is None:
+            return web.json_response({"error": "動かす画像と動きの指示を指定してください"}, status=400)
+        args += video_args
+    elif body.get("mode") == "edit":
         edit_args = _edit_args(body)
         if edit_args is None:
             return web.json_response({"error": "編集する画像と指示を指定してください"}, status=400)
@@ -173,7 +193,7 @@ async def run(request: web.Request) -> web.Response:
         if body.get("scenes"):
             args += ["--scenes", body["scenes"]]
 
-    if body.get("mode") != "edit":
+    if body.get("mode") not in ("edit", "video"):
         for path in body.get("ref") or []:
             args += ["-r", path]
         for path in body.get("scene_ref") or []:
@@ -365,6 +385,12 @@ async def backup(request: web.Request) -> web.Response:
 @routes.get("/reina")
 async def index(request: web.Request) -> web.StreamResponse:
     return web.FileResponse(WEB / "index.html")
+
+
+@routes.get("/reina/clip")
+async def clip_page(request: web.Request) -> web.StreamResponse:
+    """プロンプト → 0秒目の静止画 → 確認・編集 → 動画、を1画面で行う。"""
+    return web.FileResponse(WEB / "clip.html")
 
 
 NODE_CLASS_MAPPINGS: dict = {}
