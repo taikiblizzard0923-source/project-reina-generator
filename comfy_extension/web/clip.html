@@ -58,6 +58,12 @@
   .refs input { width:auto; -webkit-appearance:checkbox; appearance:auto; margin:0; }
 
   details { margin-top:12px; }
+  .plist { max-height:46vh; overflow:auto; margin-top:8px; border-radius:10px; }
+  .plist button { display:block; width:100%; text-align:left; margin:0 0 6px; padding:10px 12px;
+                  background:var(--chip); color:var(--fg); border:1px solid var(--line); border-radius:10px;
+                  font-size:13px; line-height:1.45; font-weight:400; }
+  .plist button b { display:block; font-size:12px; color:var(--accent); font-weight:600; }
+  .plist button.sel { border-color:var(--accent); }
   summary { font-size:13px; color:var(--accent); cursor:pointer; padding:6px 0; }
 
   .still { position:relative; }
@@ -114,6 +120,12 @@
       <button>cozy living room, oversized knit sweater, warm lamp light</button>
       <button>park in spring, light cardigan and jeans, cherry blossoms</button>
     </div>
+    <details id="presetBox">
+      <summary>プリセットから呼び出す</summary>
+      <label for="preset">シーン定義（presets/）</label>
+      <select id="preset"><option value="">選んでください</option></select>
+      <div class="plist" id="plist"></div>
+    </details>
     <label>人物の参照画像（顔の写真だけ）</label>
     <div class="refs" id="refs"></div>
     <details>
@@ -272,6 +284,7 @@ async function loadRefs() {
     $('retryRefs').onclick = (ev) => { ev.preventDefault(); loadRefs(); };
     return;
   }
+  fillPresets(r.presets || []);
   const chosen = store.get('refs') || DEFAULT_REFS;
   $('refs').innerHTML = r.images.length
     ? r.images.map((p) =>
@@ -281,6 +294,47 @@ async function loadRefs() {
   $('refs').onchange = () => store.set('refs', refs());
 }
 const refs = () => [...$('refs').querySelectorAll('input:checked')].map((el) => el.value);
+
+// -- プリセット（presets/*.yaml の scenes:）--------------------------------
+// 選んだシーンに width/height があれば、場面を書き換えない限りそれも使う
+let presetSize = store.get('presetSize');
+
+function fillPresets(names) {
+  const last = store.get('preset') || '';
+  $('preset').innerHTML = '<option value="">選んでください</option>' +
+    names.map((n) => `<option ${n === last ? 'selected' : ''}>${n}</option>`).join('');
+  if (last && names.includes(last)) loadPreset(last);
+}
+
+async function loadPreset(name) {
+  store.set('preset', name);
+  $('plist').innerHTML = '';
+  if (!name) return;
+  let r;
+  try { r = await api(`scenes?name=${encodeURIComponent(name)}`); }
+  catch (e) { $('plist').innerHTML = `<span class="err">${e.message}</span>`; return; }
+  if (r.error || !r.scenes.length) {
+    $('plist').innerHTML = `<span class="sub">${r.error || 'scenes: が空です'}</span>`;
+    return;
+  }
+  r.scenes.forEach((s) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<b></b><span></span>`;
+    b.querySelector('b').textContent = s.id + (s.width && s.height ? `  ${s.width}×${s.height}` : '');
+    b.querySelector('span').textContent = s.prompt;
+    b.className = $('scene').value.trim() === s.prompt ? 'sel' : '';
+    b.onclick = () => {
+      $('scene').value = s.prompt;
+      store.set('scene', s.prompt);
+      presetSize = s.width && s.height ? {width: s.width, height: s.height, prompt: s.prompt} : null;
+      store.set('presetSize', presetSize);
+      $('plist').querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
+      $('scene').scrollIntoView({behavior: 'smooth', block: 'center'});
+    };
+    $('plist').appendChild(b);
+  });
+}
+$('preset').onchange = () => loadPreset($('preset').value);
 
 function setStill(p, advance = true) {
   still = p;
@@ -406,7 +460,9 @@ function makeStill() {
   if (!prompt) { setStep(1); $('scene').focus(); return; }
   if (!refs().length && !confirm('参照画像なしで作りますか？（別人になります）')) return;
   document.activeElement.blur();
-  start('still', {prompt, ref: refs(), seed: $('seed').value, repeat: 1});
+  const size = presetSize && presetSize.prompt === prompt
+    ? {width: presetSize.width, height: presetSize.height} : {};
+  start('still', {prompt, ref: refs(), seed: $('seed').value, repeat: 1, ...size});
 }
 
 $('main').onclick = () => {

@@ -92,6 +92,37 @@ async def options(request: web.Request) -> web.Response:
     )
 
 
+@routes.get("/reina/scenes")
+async def scenes(request: web.Request) -> web.Response:
+    """シーン定義（presets/<name>.yaml の scenes:）の中身を返す。1件ずつ呼び出して使う用。"""
+    import yaml
+
+    name = Path(request.query.get("name", "")).name  # ディレクトリ部分は捨てる
+    path = next(
+        (p for p in (REPO / "presets" / f"{name}.yaml", REPO / "presets" / f"{name}.example.yaml") if p.is_file()),
+        None,
+    )
+    if not name or path is None:
+        return web.json_response({"error": f"presets/{name}.yaml がありません"}, status=404)
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        return web.json_response({"error": f"{path.name} を読めません: {exc}"}, status=400)
+    items = []
+    for index, item in enumerate(raw.get("scenes") or []):
+        if isinstance(item, str):
+            item = {"prompt": item}
+        if not isinstance(item, dict) or not item.get("prompt"):
+            continue
+        items.append({
+            "id": str(item.get("id") or f"scene{index:02d}"),
+            "prompt": " ".join(str(item["prompt"]).split()),
+            "width": item.get("width"),
+            "height": item.get("height"),
+        })
+    return web.json_response({"name": name, "scenes": items})
+
+
 # -- 実行 -------------------------------------------------------------------
 
 
