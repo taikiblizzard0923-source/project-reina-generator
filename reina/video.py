@@ -47,12 +47,25 @@ def video_size(aspect_w: float, aspect_h: float, megapixels: float, multiple: in
 ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth")
 
 
-# 動きの説明をセリフとして読み上げてしまうことがある（実機で確認）ので、
-# 話すのはセリフ欄の1行だけ・無ければ話さない、をはっきり書く
-def _dialogue(say: str | None, lang: str) -> str:
+# 動き（見た目の指示）とセリフは、別々の行・別々の見出しに書いて混ざらないようにする。
+# 同じ段落に並べると、H3 が動きの文まで読み上げることがある（実機で確認）。
+# 話すのはセリフ欄の1行だけで、無ければ「誰も話さない」と書く。
+JAPANESE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
+# 動きの文に混ざった「」『』“” はセリフと取り違えられやすいので、括弧だけ外す（中の言葉は残す）
+SPEECH_MARKS = str.maketrans("", "", "「」『』“”\"")
+
+
+def _visual(scene: str) -> str:
+    scene = scene.strip().rstrip(".。").translate(SPEECH_MARKS)
+    note = "written in Japanese, " if JAPANESE.search(scene) else ""
+    return (f"Visual action only ({note}silent, describes what is seen; none of these words are "
+            f"spoken or heard): {scene}.")
+
+
+def _dialogue(say: str | None, lang: str, who: str = "<Subject 1>") -> str:
     if say:
-        return f" <Subject 1> says only this line: <d>[{lang}] {say.strip()}</d>"
-    return " <Subject 1> does not speak."
+        return f"Dialogue: {who} says exactly this one line and nothing else: <d>[{lang}] {say.strip()}</d>"
+    return "Dialogue: none. Nobody speaks in this shot."
 
 
 def _soundscape(sound: str | None, voice: str | None, say: str | None) -> str:
@@ -87,30 +100,20 @@ def reference_prompt(
         f"<Subject 1> is the person shown in the {images}: one and the same person "
         "seen from different angles.\n\n"
         "summary:\n"
-        f"[reference generation] The target video shows <Subject 1>: {scene}. "
+        f"[reference generation] The target video shows <Subject 1>: {scene.translate(SPEECH_MARKS)}. "
         "The reference images guide only <Subject 1>'s face and identity.\n\n"
         "retention_analysis:\n"
         "<Subject 1> (appears in [Shot 1]): fully_preserved - the facial features and identity "
         "are retained; clothing, hairstyle and surroundings follow the description, "
         "not the reference images. <Subject 1> appears only once.\n\n"
         "detailed_description:\n"
-        f"[Shot 1] {scene}.{_dialogue(say, lang)}\n\n"
+        f"[Shot 1] {_visual(scene)}\n"
+        f"[Shot 1] {_dialogue(say, lang)}\n\n"
         "overall_soundscape:\n"
         f"{_soundscape(sound, voice, say)}\n\n"
         "non_diegetic_music:\n"
         f"{music.strip() if music else 'N/A'}"
     )
-
-
-JAPANESE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
-
-
-def _motion_label(scene: str) -> str:
-    """動きの説明の前置き。日本語のときは、読み上げる文ではないことをより強く書く。"""
-    if JAPANESE.search(scene):
-        return ("Silent stage direction, written in Japanese, describing only what is seen; "
-                "none of these words are spoken aloud: ")
-    return "On screen (shown, not spoken): "
 
 
 def image_prompt(
@@ -122,13 +125,12 @@ def image_prompt(
     lang: str = "Japanese",
 ) -> str:
     """fl2va 用。<Picture 1>（最初のフレーム）を 0 秒目として完全に参照させる。"""
-    scene = scene.strip().rstrip(".")
     return (
         "integrated_multimodal_description: For the target video, at 0.00 seconds into the target "
         "video, <Picture 1> (from [Shot 1]) is fully referenced.\n\n"
-        "[Shot 1] Preserve the subject, clothing, and scene from <Picture 1>. "
-        f"{_motion_label(scene)}"
-        f"{scene}.{_dialogue(say, lang).replace('<Subject 1>', 'The person')}\n\n"
+        "[Shot 1] Preserve the subject, clothing, and scene from <Picture 1>.\n"
+        f"[Shot 1] {_visual(scene)}\n"
+        f"[Shot 1] {_dialogue(say, lang, 'The person')}\n\n"
         "overall_soundscape: "
         f"{_soundscape(sound, voice, say).replace('<Subject 1>', 'The person')}\n\n"
         f"non_diegetic_music: {music.strip() if music else 'N/A'}"

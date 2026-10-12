@@ -124,7 +124,7 @@ async def scenes(request: web.Request) -> web.Response:
             "height": item.get("height"),
             # md_to_preset.py で変換したプリセットは動画の指示と長さも持つ
             "video": " ".join(str(item["video"]).split()) if item.get("video") else None,
-            # 日本語の動きは H3 がセリフとして読み上げやすいので、英訳があればそちらを使う
+            # 英訳（日本語の動きが読み上げられるときの予備）
             "video_en": " ".join(str(item["video_en"]).split()) if item.get("video_en") else None,
             "seconds": item.get("seconds"),
         })
