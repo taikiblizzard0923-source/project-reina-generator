@@ -46,14 +46,21 @@ def video_size(aspect_w: float, aspect_h: float, megapixels: float, multiple: in
 ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth")
 
 
+# 動きの説明をセリフとして読み上げてしまうことがある（実機で確認）ので、
+# 話すのはセリフ欄の1行だけ・無ければ話さない、をはっきり書く
 def _dialogue(say: str | None, lang: str) -> str:
-    return f" <Subject 1> says <d>[{lang}] {say.strip()}</d>" if say else ""
+    if say:
+        return f" <Subject 1> says only this line: <d>[{lang}] {say.strip()}</d>"
+    return " <Subject 1> does not speak."
 
 
 def _soundscape(sound: str | None, voice: str | None, say: str | None) -> str:
     parts = []
     if say:
         parts.append(f"<Subject 1> speaks in {voice.strip()}." if voice else "<Subject 1> speaks clearly.")
+        parts.append("Apart from that one line there is no speech, voiceover or narration.")
+    else:
+        parts.append("No speech, no voiceover, no narration.")
     parts.append(sound.strip() if sound else "Natural ambient sound that matches the scene.")
     return " ".join(parts)
 
@@ -107,7 +114,7 @@ def image_prompt(
     return (
         "integrated_multimodal_description: For the target video, at 0.00 seconds into the target "
         "video, <Picture 1> (from [Shot 1]) is fully referenced.\n\n"
-        "[Shot 1] Preserve the subject, clothing, and scene from <Picture 1>, then: "
+        "[Shot 1] Preserve the subject, clothing, and scene from <Picture 1>. On screen (shown, not spoken): "
         f"{scene}.{_dialogue(say, lang).replace('<Subject 1>', 'The person')}\n\n"
         "overall_soundscape: "
         f"{_soundscape(sound, voice, say).replace('<Subject 1>', 'The person')}\n\n"
