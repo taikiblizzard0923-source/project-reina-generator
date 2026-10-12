@@ -24,7 +24,10 @@ source venv/bin/activate
 # 使うモデルも内蔵ディスクに写して、そちらから読ませる（local_models.py の説明を参照）
 if [ -L venv ] && [ "${SKIP_LOCAL_MODELS:-0}" != "1" ]; then
   echo "==> モデルを内蔵ディスクに写します（写し済みは飛ばす。初回は数分）"
-  python "$(dirname "$(readlink -f "$0")")/local_models.py" --comfy "$COMFY" || true
+  # 全部写せたら 0、空き不足などで残りがあれば 3（そのときだけ dynamic VRAM を切る）
+  # set -e で止まらないよう、終了コードはここで受け取る
+  LOCAL_MODELS_STATUS=0
+  python "$(dirname "$(readlink -f "$0")")/local_models.py" --comfy "$COMFY" || LOCAL_MODELS_STATUS=$?
 fi
 
 # RunPod のプロキシから届かせるため 0.0.0.0 で待ち受ける（127.0.0.1 では外から見えない）
@@ -38,9 +41,10 @@ if [ -L venv ] && grep -q -- "--database-url" comfy/cli_args.py 2>/dev/null \
   CMD+=(--database-url "sqlite:////opt/comfy-db/comfyui.db")
 fi
 # 新しい読み込み方式（dynamic VRAM）は重みをファイルから細切れに読むので、ネットワーク上の
-# ストレージでは読み込みが止まったように遅くなる（順に読めば 350MB/s 出るのに数分以上）。
-# 従来どおり丸ごと読ませる
-if [ -L venv ] && grep -q -- "--disable-dynamic-vram" comfy/cli_args.py 2>/dev/null \
+# ストレージから読むモデルがあると止まったように遅くなる。全部を内蔵ディスクに写せたときは
+# 移行前と同じく dynamic VRAM のまま（切ると H3 の生成中に VRAM が溢れることがある）
+if [ -L venv ] && [ "${LOCAL_MODELS_STATUS:-3}" != "0" ] \
+   && grep -q -- "--disable-dynamic-vram" comfy/cli_args.py 2>/dev/null \
    && [[ "$COMFY_ARGS" != *dynamic-vram* ]]; then
   CMD+=(--disable-dynamic-vram)
 fi

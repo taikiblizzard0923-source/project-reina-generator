@@ -92,10 +92,11 @@ def main() -> int:
     comfy, dest = Path(args.comfy), Path(args.dest)
 
     dest.mkdir(parents=True, exist_ok=True)
-    copied = skipped = 0
+    copied = skipped = missing = 0
     for folder, name in wanted():
         src = find(comfy, folder, name)
         if src is None:
+            # どこにも無いものは読み込みもされないので、dynamic VRAM の判断には数えない
             print(f"  -- 見つからない: {folder}/{name}")
             continue
         target = dest / folder / name
@@ -106,6 +107,7 @@ def main() -> int:
         free = shutil.disk_usage(dest).free
         if size + KEEP_FREE > free:
             print(f"  !! 空きが足りないので写しません: {name}（{size / 1e9:.1f}GB / 空き {free / 1e9:.1f}GB）")
+            missing += 1
             continue
         print(f"  写す: {folder}/{name}（{size / 1e9:.1f}GB）", flush=True)
         if args.dry_run:
@@ -119,7 +121,10 @@ def main() -> int:
     if not args.dry_run:
         write_extra_paths(comfy, dest)
     print(f"==> 内蔵ディスクのモデル: 新しく写した {copied} / 写し済み {skipped}（{dest}）")
-    return 0
+    if missing:
+        print(f"    写せなかったもの {missing} 件はネットワーク上のストレージから読みます")
+    # 3 = 全部は写せていない（runpod_start.sh が dynamic VRAM を切る目印にする）
+    return 3 if missing else 0
 
 
 if __name__ == "__main__":
