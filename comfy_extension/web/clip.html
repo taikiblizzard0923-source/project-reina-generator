@@ -197,6 +197,9 @@
 </section>
 
 <div class="dock">
+  <div class="alt" id="cancelRow" style="display:none">
+    <button id="cancel">キャンセル</button>
+  </div>
   <div class="alt" id="alt" style="display:none">
     <button id="again">別の構図で作り直す</button>
     <button id="toVideo">直さずに動画へ</button>
@@ -221,6 +224,7 @@ const store = {
 let still = null;
 let step = 1;
 let busy = false;
+let cancelled = false;
 const history = [];
 
 // -- 段階の切り替え --------------------------------------------------------
@@ -372,8 +376,24 @@ function setBusy(on, text) {
   $('again').disabled = on;
   $('toVideo').disabled = on;
   $('main').textContent = on ? text : LABEL[step];
+  $('cancelRow').style.display = on ? 'flex' : 'none';
+  $('alt').style.display = !on && step === 2 ? 'flex' : 'none';
   keepAwake(on);
 }
+
+$('cancel').onclick = async () => {
+  if (!confirm('実行中の処理を止めますか？')) return;
+  const running = store.get('running');
+  $('cancel').disabled = true;
+  try { await api(`cancel?id=${running ? running.id : ''}`, {method: 'POST'}); } catch {}
+  $('cancel').disabled = false;
+  // 記録が残っていない（ComfyUI 再起動後など）ときは、ここで画面だけ戻す
+  cancelled = true;
+  store.set('running', null);
+  setBusy(false);
+  $('status').textContent = 'キャンセルしました';
+  [1, 2, 3].forEach((n) => { $('bar' + n).classList.remove('show'); $('log' + n).textContent = ''; });
+};
 
 // 1回の実行を見届けて、最後に保存されたファイルを返す。
 // ページを閉じても戻ってきたら続きを追えるよう、実行 ID を保存しておく
@@ -383,7 +403,9 @@ function watch(id, kind) {
   bar.classList.add('show');
   return new Promise((resolve) => {
     let failures = 0;
+    cancelled = false;
     const tick = async () => {
+      if (cancelled) { resolve(null); return; }
       let s;
       try { s = await api(`status?id=${id}`); failures = 0; }
       catch (e) {

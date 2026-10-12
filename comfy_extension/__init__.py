@@ -33,6 +33,8 @@ JOB = re.compile(r"\[(\d+)/(\d+)\]")
 STEP = re.compile(r"\[[#.]+\]\s*(\d+)/(\d+)")
 
 RUNS: dict[str, dict] = {}
+# 実行中の CLI プロセス（キャンセル用。RUNS は JSON で返すので別に持つ）
+PROCS: dict[str, asyncio.subprocess.Process] = {}
 MAX_RUNS = 20
 
 routes = PromptServer.instance.routes
@@ -259,9 +261,40 @@ async def run(request: web.Request) -> web.Response:
     }
     for stale in list(RUNS)[:-MAX_RUNS]:
         RUNS.pop(stale, None)
+        PROCS.pop(stale, None)
 
+    PROCS[run_id] = proc
     asyncio.create_task(_pump(RUNS[run_id], proc))
     return web.json_response({"id": run_id})
+
+
+def _stop_comfy_work() -> None:
+    """ComfyUI の実行中の処理を中断し、待ち行列を空にする。
+
+    CLI を止めても、送り済みのワークフローは ComfyUI 側で走り続けるため。
+    モデルの読み込み中は、読み込みが終わった時点で止まる。
+    """
+    try:
+        PromptServer.instance.prompt_queue.wipe_queue()
+    except Exception:  # noqa: BLE001 - ComfyUI の版で場所が変わっても UI は止めない
+        pass
+    try:
+        import comfy.model_management
+
+        comfy.model_management.interrupt_current_processing(True)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+@routes.post("/reina/cancel")
+async def cancel(request: web.Request) -> web.Response:
+    run_id = request.query.get("id", "")
+    run, proc = RUNS.get(run_id), PROCS.get(run_id)
+    if run and proc and not run["finished"]:
+        proc.terminate()
+        run["cancelled"] = True
+    _stop_comfy_work()
+    return web.json_response({"ok": True, "known": bool(run)})
 
 
 @routes.get("/reina/status")
