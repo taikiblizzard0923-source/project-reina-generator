@@ -10,9 +10,11 @@ md の形（「### シーンNN：タイトル」の下に、静止画と動画�
     * **動画プロンプト**:
       > 明るいショッピングエリアで椅子に座り…8秒。
 
-文面は書き換えずにそのまま入れる。prompt が静止画、video が動画の指示になり、
-/reina/clip でシーンを選ぶと両方の欄に入る。動画の文に「N秒」があれば seconds にも入れる
-（文面はそのまま）。
+文面はそのまま入れ、変えるのは次の3つだけ:
+  - 主体（「〇〇」「女性」「モデル」）を「参照画像の女性」（--subject で変更可）にそろえる
+  - 動画の文から長さの記述（「全8秒。」「、8秒。」）を外す（長さは画面で選ぶ）
+  - 静止画の文の最後に、背景・小物を細部まで配置する一文を足す（--no-detail で足さない）
+prompt が静止画、video が動画の指示になり、/reina/clip でシーンを選ぶと両方の欄に入る。
 """
 
 from __future__ import annotations
@@ -31,8 +33,13 @@ FIELD = re.compile(r"^\s*[*\-]\s*\*\*(?:[A-Z]\s*)?(静止画|動画)[^*]*\*\*\s*
 # Google Drive のテキスト表示などで付く、Markdown 記号の前のバックスラッシュ
 ESCAPED = re.compile(r"\\([#*>\-_.\[\]()!])")
 QUOTE = re.compile(r"^\s*>\s?(.*)$")
-# 「8秒」は長さ、「5秒目」は途中のタイミングなので数えない
-SECONDS = re.compile(r"(\d+(?:\.\d+)?)\s*秒(?!目)")
+# 動画の長さの書き方（「全8秒。」「、8秒。」「8秒、」）。長さは画面で選ぶので文から外す。
+# 「最初の7秒で」「最後の1秒は」「5秒目あたりで」のような途中のタイミングは残す
+DURATION = re.compile(r"(?:全\s*\d+(?:\.\d+)?\s*秒[。、]?\s*|[、,]\s*\d+(?:\.\d+)?\s*秒(?=[。、,]|$)|(?<=[。\s])\d+(?:\.\d+)?\s*秒[、,。]\s*)")
+# 主体の書き方（〇〇 など）。--subject で置き換える
+PLACEHOLDERS = ("〇〇", "○○", "◯◯")
+DEFAULT_SUBJECT = "参照画像の女性"
+DETAIL = "背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。"
 
 
 def parse(text: str) -> tuple[str, list[dict]]:
@@ -71,23 +78,44 @@ def parse(text: str) -> tuple[str, list[dict]]:
     return title, scenes, notes
 
 
-def to_preset(title: str, scenes: list[dict], notes: list[str] | None = None) -> dict:
+# 主体を指す言葉。「モデルライクな表情」の「モデル」は主体ではないので外す
+SUBJECT_WORDS = re.compile(r"(?<!参照画像の)(?:女性|モデル(?!ライク))")
+
+
+def _subject(text: str, subject: str) -> str:
+    for mark in PLACEHOLDERS:
+        text = text.replace(mark, subject)
+    return SUBJECT_WORDS.sub(subject, text)
+
+
+def _drop_duration(text: str) -> str:
+    text = DURATION.sub(lambda m: "。" if m.group(0).rstrip().endswith("。") and not m.group(0).startswith("全") else "", text)
+    return re.sub(r"。。+", "。", text).strip()
+
+
+def to_preset(
+    title: str,
+    scenes: list[dict],
+    notes: list[str] | None = None,
+    subject: str = DEFAULT_SUBJECT,
+    detail: bool = True,
+) -> dict:
+    """文面はそのまま。変えるのは 主体（〇〇）の置き換え・動画の長さの記述の削除・背景の一文の追加だけ。"""
     out = []
     for s in scenes:
         if not s.get("prompt"):
             continue
-        item = {"id": f"s{s['no']:02d}", "title": s["title"], "prompt": s["prompt"]}
+        prompt = _subject(s["prompt"], subject)
+        if detail:
+            prompt = prompt.rstrip() + ("" if prompt.rstrip().endswith("。") else "。") + DETAIL
+        item = {"id": f"s{s['no']:02d}", "title": _subject(s["title"], subject), "prompt": prompt}
         if s.get("video"):
-            item["video"] = s["video"]
-            if found := SECONDS.findall(s["video"]):
-                # 「全8秒。最初の7秒で…最後の1秒は…」のように複数あれば一番長いものが全体の長さ
-                value = max(found, key=float)
-                item["seconds"] = float(value) if "." in value else int(value)
+            item["video"] = _drop_duration(_subject(s["video"], subject))
         out.append(item)
     preset = {"title": title}
     if notes:
         # 生成には使わない（読む人向けのメモ）。文面はそのまま
-        preset["notes"] = notes
+        preset["notes"] = [_subject(n, subject) for n in notes]
     preset["scenes"] = out
     return preset
 
@@ -97,10 +125,12 @@ def main() -> int:
     parser.add_argument("md", nargs="+")
     parser.add_argument("--name", help="出力名（1ファイルのときだけ。省略時は md のファイル名）")
     parser.add_argument("--out", default=str(Path(__file__).resolve().parent.parent / "presets"))
+    parser.add_argument("--subject", default=DEFAULT_SUBJECT, help=f"〇〇 を置き換える言葉（既定: {DEFAULT_SUBJECT}）")
+    parser.add_argument("--no-detail", action="store_true", help="静止画の文に背景・小物の一文を足さない")
     args = parser.parse_args()
     for path in map(Path, args.md):
         title, scenes, notes = parse(path.read_text(encoding="utf-8"))
-        preset = to_preset(title, scenes, notes)
+        preset = to_preset(title, scenes, notes, args.subject, not args.no_detail)
         if not preset["scenes"]:
             print(f"!! {path.name}: シーンが見つかりません（形式が違う可能性）", file=sys.stderr)
             continue
