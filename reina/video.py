@@ -11,6 +11,7 @@ cfg は無い（BasicGuider）。音声はプロンプトから同時に生成�
 from __future__ import annotations
 
 import math
+import re
 from typing import Any
 
 from .workflows import Graph, autogrow_inputs
@@ -101,6 +102,17 @@ def reference_prompt(
     )
 
 
+JAPANESE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
+
+
+def _motion_label(scene: str) -> str:
+    """動きの説明の前置き。日本語のときは、読み上げる文ではないことをより強く書く。"""
+    if JAPANESE.search(scene):
+        return ("Silent stage direction, written in Japanese, describing only what is seen; "
+                "none of these words are spoken aloud: ")
+    return "On screen (shown, not spoken): "
+
+
 def image_prompt(
     scene: str,
     say: str | None = None,
@@ -114,7 +126,8 @@ def image_prompt(
     return (
         "integrated_multimodal_description: For the target video, at 0.00 seconds into the target "
         "video, <Picture 1> (from [Shot 1]) is fully referenced.\n\n"
-        "[Shot 1] Preserve the subject, clothing, and scene from <Picture 1>. On screen (shown, not spoken): "
+        "[Shot 1] Preserve the subject, clothing, and scene from <Picture 1>. "
+        f"{_motion_label(scene)}"
         f"{scene}.{_dialogue(say, lang).replace('<Subject 1>', 'The person')}\n\n"
         "overall_soundscape: "
         f"{_soundscape(sound, voice, say).replace('<Subject 1>', 'The person')}\n\n"

@@ -6,39 +6,49 @@ scenes:
   title: ショッピングエリアでのひととき
   prompt: 明るいインドアショッピングエリアの椅子に腰かける参照画像の女性のリアルな全身ポートレート。白いクロップドTシャツとグレーのショートパンツを着用し、脚を組んでリラックスした姿勢。商業施設の華やかな照明、浅い被写界深度、フォトリアル、8k。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 明るいショッピングエリアで椅子に座り、リラックスしている参照画像の女性。最初は横を向いて寛いでいるが、ふとカメラに気づき、視線を合わせて優しくチャーミングにニコッと微笑む。カメラはゆっくりと彼女に近づく。スムーズな動き、超リアル。
+  video_en: She sits relaxed on a chair in a bright shopping area. At first she looks away, relaxing, then suddenly notices the camera, meets its gaze and gives a gentle, charming smile. The camera slowly moves toward her. Smooth motion, ultra realistic.
 - id: s02
   title: 陽光が差し込むオープンカフェ
   prompt: 屋外のカフェテラス席に座るスタイリッシュな参照画像の女性のミディアムショット。ベージュのオープンカラーシャツを羽織り、顎に手を当てて遠くを眺めている。温かい午後の光、背景の美しいボケ味、自然なスキントーン、フォトリアル、4k。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 日当たりの良いカフェテラスで座っている参照画像の女性。周りの風景を気ままに眺めていた彼女が、ゆっくりカメラの方へ顔を向け、撮影に気づいて甘く自然な笑顔を見せる。風に揺れる髪、フォトリアル。
+  video_en: She sits on a sunny cafe terrace. Idly watching the scenery, she slowly turns her face toward the camera, notices she is being filmed and shows a sweet, natural smile. Hair swaying in the breeze, photorealistic.
 - id: s03
   title: 街角の公園ベンチ
   prompt: 都市の公園のベンチに座る参照画像の女性の自然なカット。ライトニットとデニムを着用。自然光、柔らかくぼかされた街並みの背景、リアルな肌の質感、映画のようなカラーグレーディング、4k。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 街のベンチに座って寛ぐ参照画像の女性。ふと撮影者に気づき、少し首をかしげながら嬉しそうにパッと明るい笑顔を浮かべる。スムーズなフォーカス移動。
+  video_en: She relaxes on a city bench. She suddenly notices the person filming, tilts her head slightly and breaks into a happy, bright smile. Smooth focus shift.
 - id: s04
   title: モダンなホテルラウンジ
   prompt: ホテルラウンジの洗練された椅子に深く腰掛ける参照画像の女性の全身ポートレート。黒のノースリーブトップス、エレガントな室内照明、詳細な服の質感、リアルな表情、フォトリアル。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: モダンなラウンジでスタイリッシュに座る参照画像の女性。一瞬うつむいてから直視するようにカメラを見つめ、いたずらっぽく柔らかな微笑みを浮かべる。シネマティックなライティング。
+  video_en: She sits stylishly in a modern lounge. She looks down for a moment, then looks straight into the camera with a playful, soft smile. Cinematic lighting.
 - id: s05
   title: 空港ターミナルの待合席
   prompt: 明るい空港ラウンジのシートに座る参照画像の女性。シンプルなリネンワンピースを着用。大きな窓からの自然光、質感豊かな肌のディテール、フォトリアル、4k。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 空港のターミナルでリラックスしている参照画像の女性。視線を周囲からカメラへと移し、気づくと同時に優しく微笑み、小さく手を振る。リアルな質感の動画。
+  video_en: She relaxes in an airport terminal. Her gaze moves from her surroundings to the camera; as she notices it she smiles gently and gives a small wave. Realistic video texture.
 - id: s06
   title: 静かなブックカフェの窓際
   prompt: 落ち着いたブックカフェの窓際に座る魅力的な参照画像の女性のクローズアップ。パステルカラーの薄手ニットを着用。温かみのある照明、親密な雰囲気、浅い被写界深度、8k。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: カフェの窓際に座る参照画像の女性。最初は外を眺めているが、静かに顔をカメラの方向へ向け、おだやかで優しい微笑みを送る。自然なモーション。
+  video_en: She sits by the window of a cafe. At first she looks outside, then quietly turns her face toward the camera and sends a calm, kind smile. Natural motion.
 - id: s07
   title: ホテルロビーのソファ
   prompt: 高級ホテルのソファに浅く腰かけるシックな参照画像の女性のミディアムショット。開襟ブラウスとアクセサリを着用。雰囲気を引き立てる室内光、フォトリアル。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: ソファでリラックスしている参照画像の女性。カメラが滑らかに近づくと視線をレンズに合わせ、髪を少し整えながら親しみのある笑みを浮かべる。
+  video_en: She relaxes on a sofa. As the camera smoothly approaches, she meets the lens, tidies her hair a little and gives a friendly smile.
 - id: s08
   title: 夕暮れ時のテラス
   prompt: 夕暮れ時（ゴールデンアワー）のテラスに座る参照画像の女性のポートレート。シックなサンドレスを着用。彼女のシルエットを美しく照らす夕陽の輝き、温かいトーン、4k。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 夕方のバルコニーテラスで座る参照画像の女性。カメラの方へ振り返り、撮影されていることに気づいて黄金色の夕日をバックに輝くような笑顔を見せる。
+  video_en: She sits on a balcony terrace in the evening. She turns toward the camera, notices she is being filmed and gives a radiant smile against the golden sunset.
 - id: s09
   title: オフィスラウンジのハイスツール
   prompt: モダンなオフィスラウンジのスツールに座る参照画像の女性のナチュラルカット。フィットしたクルーネックTシャツとカジュアルなパンツ。洗練された背景、自然光、フォトリアル。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: ラウンジスペースで座っている参照画像の女性。ふと目線を上げ、カメラと目が合うと自信に満ちたチャーミングな笑顔を浮かべる。滑らかなカメラワーク。
+  video_en: She sits in a lounge space. She suddenly looks up, and when her eyes meet the camera she gives a confident, charming smile. Smooth camera work.
 - id: s10
   title: 広場のストーンベンチ
   prompt: 日当たりの良い広場の石造りベンチに座る若い参照画像の女性の全身ショット。カジュアルなトップスとショーツ。鮮やかな日光、リアルなテクスチャ、8k。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 日光が差し込む広場に座る参照画像の女性。カメラに直視で視線を合わせ、ぱっと華やかで明るい笑顔を咲かせる。超リアルな動画演出。
+  video_en: She sits in a sunlit plaza. She looks straight into the camera and breaks into a bright, gorgeous smile. Ultra realistic video.

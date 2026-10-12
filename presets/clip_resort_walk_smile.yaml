@@ -7,39 +7,49 @@ scenes:
   title: 石畳のリゾート街並み歩き（視線外しからカメラに気づいてパッと笑顔）
   prompt: 参照画像の女性が明るい陽光が降り注ぐ地中海風リゾート街の石畳の上を、ハンドバッグを片手に優雅に歩いている全身ショット。オリーブグリーンのクロップトップから覗く豊かな胸元と引き締まったお腹、歩みに合わせて揺れる白いフレアパンツ。ふと遠くのカメラ（相手）の存在に気づき、パッと表情を輝かせてニコッと微笑む一瞬。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。石畳を歩く姿から開始。最初の7秒で、視線を横へ向けながら歩いていた姿勢から、ふと正面のカメラを捉えて歩みを緩め、髪をサッと手で耳にかけながら「あ！」というように嬉しそうにニコッと弾ける笑顔を見せる。最後の1秒はその笑顔のまま静止。カットなし。
+  video_en: Same person as in the first frame. She walks on cobblestones, looking to the side; she suddenly catches the camera in front of her, slows down, quickly tucks her hair behind her ear and breaks into a happy, delighted smile as if surprised. She holds that smile at the end. One continuous shot.
 - id: s02
   title: ヤシの木並木通りでの歩み（揺れる髪とウエストライン、発見笑顔）
   prompt: 参照画像の女性がヤシの木と石造りの壁が続くプロムナードを横向きに颯爽と歩いている横姿（サイドウォーキング）。フィットしたトップスの胸のボリューム感と、引き締まったウエストのラインが美しく強調された構図。カメラの視線に気づいて顔をこちらへ向け、ハッと優しく微笑みかける。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。横向きに歩く姿から開始。最初の7秒で、風に髪をなびかせながら歩き、カメラの方へ視線を滑らせて目を合わせ、口元を柔らかく緩めてニコッと愛らしく微笑みながら一歩カメラへ向かって歩み寄る。最後の1秒はその笑顔で静止。カットなし。
+  video_en: Same person as in the first frame. She walks sideways with her hair blowing in the wind, slides her gaze toward the camera, softens her lips into a lovely smile and takes one step toward the camera. She holds that smile at the end. One continuous shot.
 - id: s03
   title: テラスカフェ沿いの通り歩き（胸元の弾みと目が合ってニッコリ）
   prompt: 参照画像の女性が賑やかなオープンカフェが立ち並ぶリゾートの路地を、カメラに向かって正面から歩いてくるストリートスナップ風ショット。歩く振動で胸元がしなやかに弾み、白のフレアパンツが風を孕む。遠くのレンズと目が合った瞬間の、不意を突かれたような可憐な笑顔。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。正面から歩いてくる姿から開始。最初の7秒で、ゆっくりと歩み寄りながら遠くのカメラに目線を合わせ、首をちょこんと傾けてニコッと魅力的な笑みを浮かべ、そのままカメラ前まで歩いてくる。最後の1秒はその至近距離の笑顔で静止。カットなし。
+  video_en: Same person as in the first frame. She walks toward the camera from the front, meets the distant camera's gaze, tilts her head slightly with a charming smile and keeps walking up close to the camera. She holds that close-up smile at the end. One continuous shot.
 - id: s04
   title: 古い石段を下りるステップ（足元から振り返り笑顔）
   prompt: 参照画像の女性が古い石造りの階段を、ハンドバッグを揺らしながら一歩ずつ軽やかに下りてくるバックスタイル〜斜めショット。白いパンツが描く美しい脚線美とヒップライン。途中でカメラに気づき、肩越しに振り返ってニコッと眩しそうに微笑む場面。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。階段を下りる姿から開始。最初の7秒で、階段を下りきって平地に立ち、クルッとカメラ側へ全身を向け、風で乱れた前髪を手で払いながら楽しそうにニコッと笑いかける。最後の1秒はその笑顔で静止。カットなし。
+  video_en: Same person as in the first frame. She walks down the stairs, reaches the bottom, turns her whole body toward the camera, brushes her windblown bangs aside with her hand and smiles cheerfully. She holds that smile at the end. One continuous shot.
 - id: s05
   title: ブティックのショーウィンドウ前歩き（映り込みからのカメラ視線）
   prompt: 参照画像の女性が高級ブティックのガラスショーウィンドウの前を歩いている。ウィンドウのガラスに参照画像の女性の美しいシルエットとスタイルが反射して映り込み、ふとガラス越しに遠くのカメラの存在に気づき、視線を変えて直接カメラへ向けてニコッと微笑むシネマティックな1枚。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。ウィンドウ脇を歩く姿から開始。最初の7秒で、ガラスの映り込みを気にしながら歩いていたが、レンズを見つけて足を止め、身体をカメラ側へひねって胸を張り、手を軽く振りながらニコッと微笑む。最後の1秒はその手を振る姿で静止。カットなし。
+  video_en: Same person as in the first frame. She walks beside a shop window, glancing at her reflection; she spots the lens, stops, turns her body toward the camera, stands tall and smiles while waving lightly. She holds the wave at the end. One continuous shot.
 - id: s06
   title: 鮮やかな南国のお花畑沿い散歩（バッグ持ち替えとハニカミ笑顔）
   prompt: 参照画像の女性がブーゲンビリアなどの美しい南国の花々が咲き誇る白壁の小道を歩いている。鮮やかな花々とオリーブグリーンのトップスのコントラストが美しく、カメラを見つけてバッグを持ち替え、少し照れくさそうにハニカミながらニコッと笑う表情。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。花咲く小道を歩く姿から開始。最初の7秒で、手に持ったバッグをもう片方の手へ持ち替え、歩みを緩めてカメラをじっと見つめ、照れくさそうに目を細めてニコッと笑う。最後の1秒はそのハニカミ笑顔で静止。カットなし。
+  video_en: Same person as in the first frame. She walks along a flowering path, switches her bag to the other hand, slows down, gazes at the camera and smiles shyly with narrowed eyes. She holds that shy smile at the end. One continuous shot.
 - id: s07
   title: 噴水広場脇の優雅なウォーキング（風となびくパンツ、振り返りスマイル）
   prompt: 参照画像の女性が噴水の水しぶきが舞う広場の脇を優雅な足取りで歩いている。水滴と太陽光のキラキラした反射の中で、白いフレアパンツとロングヘアが風になびく。カメラからの呼びかけ（レンズ）に気づいて優雅に振り返り、ニコッと微笑むリゾート感あふれるカット。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。噴水脇を歩く姿から開始。最初の7秒で、水しぶきを感じながら心地よさそうに歩き、カメラに気づいてくるりと向き直り、両手を広げて風を感じるポーズをとりながらニコッと微笑む。最後の1秒はそのポーズで静止。カットなし。
+  video_en: Same person as in the first frame. She walks pleasantly beside a fountain feeling the spray, notices the camera, turns around and smiles while spreading her arms as if feeling the breeze. She holds that pose at the end. One continuous shot.
 - id: s08
   title: 陽光降り注ぐシーサイドプロムナード（眩しそうな目元からニコッ）
   prompt: 参照画像の女性が青い海を望む海岸沿いの遊歩道を歩いている。強い夏の日差しを浴びて肌と衣装が黄金色に輝き、眩しそうに片手を額にかざしながら歩いている途中にカメラを見つけ、眩しそうな目元から一転してニコッと満面の笑みを見せる場面。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。海沿いを歩く姿から開始。最初の7秒で、額にかざした手を静かに下ろし、髪をかき上げながらカメラへ向かって一直線に歩み寄り、最高の笑顔をレンズへ向ける。最後の1秒はその歩み寄った笑顔で静止。カットなし。
+  video_en: Same person as in the first frame. She walks along the seaside, slowly lowers the hand shading her eyes, sweeps her hair back and walks straight toward the camera with her best smile. She holds that smile up close at the end. One continuous shot.
 - id: s09
   title: 石畳のカーブ路地からの現れ（不意打ちの発見と弾ける笑顔）
   prompt: 参照画像の女性が石造りの建物が並ぶ曲がりくねった路地の角から、軽やかな足取りでひょっこり現れる一瞬。歩きながら遠くのカメラとバッチリ目が合い、ハッと驚いた後に弾けるような満面のニコッと笑顔を見せる、ストーリー性のある縦構図。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。角から現れる姿から開始。最初の7秒で、曲がり角から姿を現して歩き出し、カメラを見つけて足をピタッと止め、両手を胸の前に添えて楽しそうに「見つかっちゃった」というようにニコッと笑う。最後の1秒はその笑顔で静止。カットなし。
+  video_en: Same person as in the first frame. She appears from around a corner and starts walking, spots the camera, stops short, puts both hands in front of her chest and laughs playfully as if caught. She holds that smile at the end. One continuous shot.
 - id: s10
   title: サンセット時の港町ストリートウォーキング（夕陽の輪郭光と極上スマイル）
   prompt: 茜色の夕日に包まれた港町のストリートを参照画像の女性が歩いている。強い逆光によって豊かなボディラインと白パンツの輪郭（リムライト）が鮮やかに描き出され、カメラに向かって歩み寄りながら見せる、ドラマチックで最高に魅力的なニコッという笑顔。背景や小物は細部まで描き込み、場面に合ったものを自然でセンスよく配置する。
   video: 静止画の参照画像の女性を同一人物のまま動画化。夕日の中を歩く姿から開始。最初の7秒で、夕日を背に受けながらカメラへ向かって一歩一歩優雅に近づき、目の前で立ち止まって首筋の髪をさっとなびかせ、最高に艶やかで可愛い笑顔を向ける。最後の1秒はその微笑みで静止。カットなし。
+  video_en: Same person as in the first frame. She walks toward the camera step by step with the sunset behind her, stops right in front of it, lets the hair at her neck sway and gives a captivating, lovely smile. She holds that smile at the end. One continuous shot.

@@ -167,6 +167,7 @@
   <h2>③ 動画にする</h2>
   <label for="action">動き・カメラ（英語）</label>
   <textarea id="action" enterkeyhint="done" placeholder="she sips her coffee, looks at the camera and smiles"></textarea>
+  <div class="sub err" id="jpWarn" style="display:none">日本語の動きはセリフとして読み上げられやすいので、英語で書くのがおすすめです。</div>
   <div class="chips" data-for="action">
     <button>she looks at the camera and smiles</button>
     <button>she waves at the camera</button>
@@ -282,6 +283,12 @@ async function loadOptions() {
 }
 const refs = () => [...$('refs').querySelectorAll('input:checked')].map((el) => el.value);
 
+// 動きの欄に日本語（かな・漢字）が入っていたら注意を出す
+function jpWarn() {
+  $('jpWarn').style.display = /[\u3040-\u30ff\u4e00-\u9fff]/.test($('action').value) ? '' : 'none';
+}
+$('action').addEventListener('input', jpWarn);
+
 // プリセット（presets/*.yaml の scenes:）。width/height があれば、場面を書き換えない限りそれも使う
 let presetSize = store.get('presetSize');
 function fillPresets(names) {
@@ -314,7 +321,8 @@ async function loadPreset(name) {
       presetSize = s.width && s.height ? {width: s.width, height: s.height, prompt: s.prompt} : null;
       store.set('presetSize', presetSize);
       // 動画の指示も持っているプリセットなら、③の欄と長さも埋める
-      if (s.video) { $('action').value = s.video; store.set('action', s.video); }
+      const motion = s.video_en || s.video;
+      if (motion) { $('action').value = motion; store.set('action', motion); jpWarn(); }
       if (s.seconds) {
         const options = [...$('seconds').options].map((o) => +o.value);
         const near = options.reduce((a, b) => (Math.abs(b - s.seconds) < Math.abs(a - s.seconds) ? b : a));
@@ -504,6 +512,7 @@ $('goVideo').onclick = () => {
 };
 
 restore();
+jpWarn();
 loadOptions();
 // 生成中にページが閉じられていたら、続きを追う
 const running = store.get('running');
