@@ -474,6 +474,17 @@ A40（Ampere）では int8 convrot と fp8 は計算を置き換えて動くの�
 
 ### RunPod 固有
 
+**移行後などで `/workspace` がネットワーク上のストレージ（`df -h /workspace` が `mfs#...`）の場合**、
+そこからの pip install・モデル読み込み・SQLite が止まったように遅くなるので、`bash go.sh restart` が自動で次を行います。
+
+- Python 環境を内蔵ディスク（`/opt/comfy-venv`）に作る（`ComfyUI/venv` はそこへのリンク）
+- 使うモデルを内蔵ディスク（`/opt/models`）に写し、ComfyUI にそちらを先に読ませる（`extra_model_paths.yaml`）
+- ComfyUI のデータベースを `/opt/comfy-db` に置き、dynamic VRAM を切る（切り替え時はモデルを VRAM から外す）
+
+内蔵ディスクは Pod を停止すると消えるため、停止後の初回の `restart` は 10 分ほどかかります。
+Container Disk は 120GB 程度にしてください（静止画用＋H3 で約 85GB）。
+
+
 **`doctor` が「ComfyUI ではないようです」と言う**
 → その URL が ComfyUI ではなく JupyterLab などを指しています。Connect パネルで **Port 8188** の HTTP Service URL を使ってください。Pod 設定で 8188 を Expose し忘れていることも多いです。
 
