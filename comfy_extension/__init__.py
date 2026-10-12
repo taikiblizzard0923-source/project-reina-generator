@@ -446,15 +446,19 @@ async def backup(request: web.Request) -> web.Response:
     )
 
 
+# 更新後に古い画面がブラウザに残って新しい機能が出ない、を防ぐ
+NO_CACHE = {"Cache-Control": "no-cache"}
+
+
 @routes.get("/reina")
 async def index(request: web.Request) -> web.StreamResponse:
-    return web.FileResponse(WEB / "index.html")
+    return web.FileResponse(WEB / "index.html", headers=NO_CACHE)
 
 
 @routes.get("/reina/clip")
 async def clip_page(request: web.Request) -> web.StreamResponse:
     """プロンプト → 0秒目の静止画 → 確認・編集 → 動画、を1画面で行う。"""
-    return web.FileResponse(WEB / "clip.html")
+    return web.FileResponse(WEB / "clip.html", headers=NO_CACHE)
 
 
 NODE_CLASS_MAPPINGS: dict = {}
