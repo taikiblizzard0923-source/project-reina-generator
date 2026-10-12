@@ -1,0 +1,136 @@
+# ChatGPT の GPT（Actions）に貼る API 定義。
+# servers の url は自分の Pod の URL に書き換える（Pod を作り直すと変わる）。
+openapi: 3.1.0
+info:
+  title: reina clip
+  version: "1.0"
+  description: RunPod 上の ComfyUI で、静止画（0秒目）→ 修正 → 音声付き動画を作る。
+servers:
+  - url: https://8ofnk4g5tt9z6b-8188.proxy.runpod.net
+paths:
+  /reina/options:
+    get:
+      operationId: getOptions
+      summary: 参照画像（input/）とプリセット名の一覧
+      responses:
+        "200":
+          description: 一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  images: {type: array, items: {type: string}, description: "参照画像のパス（例 input/face.png）"}
+                  presets: {type: array, items: {type: string}, description: "scenes: 形式のプリセット名"}
+  /reina/scenes:
+    get:
+      operationId: getPresetScenes
+      summary: プリセット（presets/<name>.yaml）のシーン一覧
+      parameters:
+        - {name: name, in: query, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: シーン一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scenes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string}
+                        prompt: {type: string}
+                        width: {type: [integer, "null"]}
+                        height: {type: [integer, "null"]}
+  /reina/recent:
+    get:
+      operationId: getRecentImages
+      summary: 最近作った画像（新しい順）
+      parameters:
+        - {name: limit, in: query, required: false, schema: {type: integer, default: 12}}
+      responses:
+        "200":
+          description: 画像パスの一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  images: {type: array, items: {type: string}}
+  /reina/run:
+    post:
+      operationId: startJob
+      summary: 静止画・修正・動画のどれか1つを開始する（すぐに id が返る。完了は getStatus で確認）
+      description: |
+        静止画: prompt と ref を送る（mode は付けない）。
+        修正: mode=edit、image（直す画像のパス）、instruction。
+        動画: mode=video、image（0秒目の画像のパス）、action、必要なら say / voice / sound / music / seconds / lang。
+        prompt も mode も無い依頼は断られる。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode: {type: string, enum: [edit, video], description: "静止画のときは付けない"}
+                prompt: {type: string, description: "静止画の場面（英語。服装・場所・光を具体的に）"}
+                ref: {type: array, items: {type: string}, description: "静止画の参照画像。通常 [input/face.png, input/rightside.png, input/leftside.png]"}
+                seed: {type: integer}
+                width: {type: integer}
+                height: {type: integer}
+                repeat: {type: integer, default: 1}
+                image: {type: string, description: "修正・動画の対象画像（output/... のパス）"}
+                instruction: {type: string, description: "修正の指示（具体的な英語）"}
+                action: {type: string, description: "動画の動き・カメラ（英語）"}
+                say: {type: string, description: "セリフ（空なら話さない）"}
+                voice: {type: string, description: "声の特徴（英語）"}
+                sound: {type: string, description: "環境音（英語）"}
+                music: {type: string, description: "BGM（英語。空なら無し）"}
+                seconds: {type: number, enum: [3, 5, 8, 10, 15], default: 3}
+                lang: {type: string, default: Japanese}
+      responses:
+        "200":
+          description: 開始した
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string}
+  /reina/status:
+    get:
+      operationId: getStatus
+      summary: 実行状況。finished が true になったら images の最後が成果物
+      parameters:
+        - {name: id, in: query, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: 状況
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  finished: {type: boolean}
+                  returncode: {type: [integer, "null"], description: "0 なら成功"}
+                  images: {type: array, items: {type: string}, description: "保存されたファイル（png / mp4）"}
+                  step: {type: integer}
+                  steps: {type: integer}
+                  elapsed: {type: number}
+                  log: {type: string}
+  /reina/cancel:
+    post:
+      operationId: cancelJob
+      summary: 実行中の処理を止める
+      parameters:
+        - {name: id, in: query, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: 止めた
+          content:
+            application/json:
+              schema: {type: object}

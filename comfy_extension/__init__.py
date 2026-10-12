@@ -221,10 +221,15 @@ async def run(request: web.Request) -> web.Response:
         args += ["mix", "--limit", str(body.get("limit") or 12)]
         if body.get("axes"):
             args += ["--axes", body["axes"]]
-    else:
+    elif body.get("mode") == "scenes":
         args += ["batch"]
         if body.get("scenes"):
             args += ["--scenes", body["scenes"]]
+    else:
+        # 空の依頼で一括生成が走らないよう、何を作るかが分からないものは断る
+        return web.json_response(
+            {"error": "prompt（静止画）か mode（edit / video / scenes / mix）を指定してください"}, status=400
+        )
 
     if body.get("mode") not in ("edit", "video"):
         for path in body.get("ref") or []:
