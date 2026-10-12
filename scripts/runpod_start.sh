@@ -30,6 +30,13 @@ if [ -L venv ] && grep -q -- "--database-url" comfy/cli_args.py 2>/dev/null \
   mkdir -p /opt/comfy-db
   CMD+=(--database-url "sqlite:////opt/comfy-db/comfyui.db")
 fi
+# 新しい読み込み方式（dynamic VRAM）は重みをファイルから細切れに読むので、ネットワーク上の
+# ストレージでは読み込みが止まったように遅くなる（順に読めば 350MB/s 出るのに数分以上）。
+# 従来どおり丸ごと読ませる
+if [ -L venv ] && grep -q -- "--disable-dynamic-vram" comfy/cli_args.py 2>/dev/null \
+   && [[ "$COMFY_ARGS" != *dynamic-vram* ]]; then
+  CMD+=(--disable-dynamic-vram)
+fi
 # shellcheck disable=SC2206
 [ -n "$COMFY_ARGS" ] && CMD+=($COMFY_ARGS)
 
