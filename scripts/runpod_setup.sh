@@ -43,29 +43,6 @@ fi
 
 cd "$COMFY"
 
-# RunPod の PyTorch イメージには torch が入っているので、
-# --system-site-packages でそれを再利用しつつ追加分だけボリュームに置く。
-if [ ! -d venv ]; then
-  echo "==> venv 作成 (system-site-packages を継承)"
-  python3 -m venv --system-site-packages venv
-fi
-# shellcheck disable=SC1091
-source venv/bin/activate
-pip install -q -U pip
-
-python -c "import torch" 2>/dev/null || {
-  echo "==> torch が無いのでインストール"
-  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-}
-
-echo "==> ComfyUI 依存"
-pip install --progress-bar off -r requirements.txt
-
-# ディスク不足などで pip が中断されると中身の無いパッケージが残り、
-# import は通るのに中身が無い、という分かりにくい形で後から壊れる
-echo "==> 依存パッケージの健全性チェック"
-python "$(dirname "$(readlink -f "$0")")/fix_deps.py" --requirements requirements.txt || true
-
 echo "==> ComfyUI-GGUF"
 mkdir -p custom_nodes
 if [ ! -d custom_nodes/ComfyUI-GGUF ]; then
@@ -73,7 +50,11 @@ if [ ! -d custom_nodes/ComfyUI-GGUF ]; then
 else
   git -C custom_nodes/ComfyUI-GGUF pull --ff-only || true
 fi
-pip install --progress-bar off -r custom_nodes/ComfyUI-GGUF/requirements.txt
+
+# RunPod の PyTorch イメージには torch が入っているので、--system-site-packages で
+# それを再利用しつつ追加分だけ入れる。/workspace がネットワーク上のストレージなら
+# venv は内蔵ディスクに置く（make_venv.sh の説明を参照）
+bash "$(dirname "$(readlink -f "$0")")/make_venv.sh" "$COMFY"
 
 mkdir -p models/unet models/text_encoders models/vae models/loras input output
 

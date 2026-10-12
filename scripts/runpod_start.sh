@@ -12,6 +12,11 @@ PORT="${PORT:-8188}"
 COMFY_ARGS="${COMFY_ARGS:-}"
 
 cd "$COMFY"
+# venv を内蔵ディスクに置いている場合、Pod を停止すると中身が消えてリンクだけが残る
+if [ ! -x venv/bin/python ]; then
+  echo "==> Python 環境がないので作り直します（5分ほど）"
+  bash "$(dirname "$(readlink -f "$0")")/make_venv.sh" "$COMFY"
+fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 
